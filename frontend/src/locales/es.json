@@ -1,0 +1,71 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "selectLanguage": "Seleccionar Idioma"
+  },
+  "header": {
+    "title": "SorobanLoyalty",
+    "dashboard": "Panel",
+    "merchant": "Comerciante",
+    "analytics": "Análisis"
+  },
+  "campaigns": {
+    "title": "Campañas Activas",
+    "noCampaigns": "No hay campañas disponibles.",
+    "status": {
+      "active": "Activa",
+      "inactive": "Inactiva",
+      "expired": "Expirada"
+    },
+    "actions": {
+      "claim": "Reclamar Recompensa",
+      "claiming": "Reclamando..."
+    },
+    "details": {
+      "merchant": "Comerciante",
+      "reward": "Recompensa",
+      "claimed": "Reclamado",
+      "expires": "Expira",
+      "campaign": "Campaña"
+    }
+  },
+  "rewards": {
+    "title": "Mis Recompensas",
+    "noRewards": "Aún no hay recompensas. Reclama una campaña para comenzar.",
+    "available": "Disponible",
+    "redeemed": "Canjeado {amount} LYT",
+    "actions": {
+      "redeem": "Canjear",
+      "redeeming": "Canjeando..."
+    }
+  },
+  "network": {
+    "connected": "Conectado",
+    "degraded": "Problemas de Red",
+    "unreachable": "Sin Conexión",
+    "lastChecked": "Última verificación: {time}",
+    "banner": {
+      "degraded": "La conexión de red está experimentando problemas. Algunas funciones pueden estar limitadas.",
+      "unreachable": "No se puede conectar a la red. Las transacciones están actualmente deshabilitadas."
+    }
+  },
+  "wallet": {
+    "connect": "Conectar Billetera",
+    "connected": "Conectado",
+    "connectFirst": "Conecta tu billetera Freighter para reclamar recompensas.",
+    "networkUnreachable": "La red no está disponible"
+  },
+  "messages": {
+    "claimSuccess": "¡Recompensa reclamada para la campaña #{id}!",
+    "claimFailed": "Fallo al reclamar",
+    "redeemSuccess": "¡Canjeado {amount} LYT!",
+    "redeemFailed": "Fallo al canjear"
+  },
+  "dashboard": {
+    "title": "Panel"
+  }
+}

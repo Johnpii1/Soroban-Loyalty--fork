@@ -2,6 +2,8 @@
 
 A modular, production-grade on-chain loyalty platform built on the **Stellar** network using **Soroban** smart contracts. Businesses create reward campaigns, users earn tokenized incentives (LYT), and everything is stored transparently on-chain.
 
+See our [Glossary](docs/glossary.md) for definitions of domain-specific terms.
+
 ---
 
 ## Architecture
