@@ -7,6 +7,7 @@ import { rpcServer } from "../soroban";
 import { upsertCampaign } from "../services/campaign.service";
 import { upsertReward, recordTransaction } from "../services/reward.service";
 import { pool } from "../db";
+import { logger } from "../logger";
 
 const REWARDS_CONTRACT = process.env.REWARDS_CONTRACT_ID ?? "";
 const CAMPAIGN_CONTRACT = process.env.CAMPAIGN_CONTRACT_ID ?? "";
@@ -121,7 +122,13 @@ export async function startIndexer(): Promise<void> {
         await saveCursor((last as SorobanRpc.Api.RawEventResponse).pagingToken);
       }
     } catch (err) {
-      console.error("[indexer] poll error:", err);
+      const error = err instanceof Error ? err : new Error(String(err));
+      const isTimeout = error.message.toLowerCase().includes("timeout") || error.message.toLowerCase().includes("timed out");
+      if (isTimeout) {
+        logger.critical("RPC timeout in indexer poll", error);
+      } else {
+        logger.error("Indexer poll error", error);
+      }
     }
   };
 
