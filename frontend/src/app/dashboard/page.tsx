@@ -2,18 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useWallet } from "@/context/WalletContext";
+import { useI18n } from "@/context/I18nContext";
 import { api, Campaign, Reward } from "@/lib/api";
 import { claimReward, redeemReward } from "@/lib/soroban";
 import { CampaignCard } from "@/components/CampaignCard";
 import { RewardList } from "@/components/RewardList";
+import { NetworkBanner } from "@/components/NetworkBanner";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
 export default function DashboardPage() {
   const { publicKey } = useWallet();
+  const { health } = useNetworkStatus();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [claimingId, setClaimingId] = useState<number | null>(null);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const networkDisabled = health.status === 'unreachable';
 
   useEffect(() => {
     api.getCampaigns().then((r) => setCampaigns(r.campaigns)).catch(console.error);
@@ -26,15 +32,16 @@ export default function DashboardPage() {
 
   const handleClaim = async (campaignId: number) => {
     if (!publicKey) return setMessage({ type: "error", text: "Connect your wallet first" });
+    if (networkDisabled) return setMessage({ type: "error", text: "Network is unreachable" });
     setClaimingId(campaignId);
     setMessage(null);
     try {
       await claimReward(publicKey, campaignId);
-      setMessage({ type: "success", text: `Reward claimed for campaign #${campaignId}!` });
+      setMessage({ type: "success", text: t('messages.claimSuccess', { id: campaignId.toString() }) });
       const r = await api.getUserRewards(publicKey);
       setRewards(r.rewards);
     } catch (err: unknown) {
-      setMessage({ type: "error", text: err instanceof Error ? err.message : "Claim failed" });
+      setMessage({ type: "error", text: err instanceof Error ? err.message : t('messages.claimFailed') });
     } finally {
       setClaimingId(null);
     }
@@ -42,15 +49,16 @@ export default function DashboardPage() {
 
   const handleRedeem = async (reward: Reward) => {
     if (!publicKey) return;
+    if (networkDisabled) return setMessage({ type: "error", text: "Network is unreachable" });
     setRedeemingId(reward.id);
     setMessage(null);
     try {
       await redeemReward(publicKey, BigInt(reward.amount));
-      setMessage({ type: "success", text: `Redeemed ${reward.amount} LYT!` });
+      setMessage({ type: "success", text: t('messages.redeemSuccess', { amount: reward.amount.toString() }) });
       const r = await api.getUserRewards(publicKey);
       setRewards(r.rewards);
     } catch (err: unknown) {
-      setMessage({ type: "error", text: err instanceof Error ? err.message : "Redeem failed" });
+      setMessage({ type: "error", text: err instanceof Error ? err.message : t('messages.redeemFailed') });
     } finally {
       setRedeemingId(null);
     }
@@ -58,27 +66,29 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 className="page-title">Dashboard</h1>
+      <h1 className="page-title">{t('dashboard.title')}</h1>
+
+      <NetworkBanner health={health} />
 
       {message && (
         <div className={`alert alert-${message.type}`}>{message.text}</div>
       )}
 
       {!publicKey && (
-        <div className="alert alert-error">Connect your Freighter wallet to claim rewards.</div>
+        <div className="alert alert-error">{t('wallet.connectFirst')}</div>
       )}
 
       <section>
-        <h2 className="section-title">Active Campaigns</h2>
+        <h2 className="section-title">{t('campaigns.title')}</h2>
         {campaigns.length === 0 ? (
-          <p className="empty-state">No campaigns available.</p>
+          <p className="empty-state">{t('campaigns.noCampaigns')}</p>
         ) : (
           <div className="grid">
             {campaigns.map((c) => (
               <CampaignCard
                 key={c.id}
                 campaign={c}
-                onClaim={handleClaim}
+                onClaim={networkDisabled ? undefined : handleClaim}
                 claiming={claimingId === c.id}
               />
             ))}
@@ -88,10 +98,10 @@ export default function DashboardPage() {
 
       {publicKey && (
         <section style={{ marginTop: 40 }}>
-          <h2 className="section-title">My Rewards</h2>
+          <h2 className="section-title">{t('rewards.title')}</h2>
           <RewardList
             rewards={rewards}
-            onRedeem={handleRedeem}
+            onRedeem={networkDisabled ? undefined : handleRedeem}
             redeeming={redeemingId}
           />
         </section>

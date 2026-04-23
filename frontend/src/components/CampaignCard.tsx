@@ -1,6 +1,7 @@
 "use client";
 
 import { Campaign } from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 
 interface Props {
   campaign: Campaign;
@@ -9,9 +10,10 @@ interface Props {
 }
 
 export function CampaignCard({ campaign, onClaim, claiming }: Props) {
-  const now = Date.now() / 1000;
-  const expired = now > campaign.expiration;
-  const status = !campaign.active ? "Inactive" : expired ? "Expired" : "Active";
+  const { t } = useI18n();
+  const expired = Date.now() / 1000 > campaign.expiration;
+  const statusKey = !campaign.active ? "inactive" : expired ? "expired" : "active";
+  const status = t(`campaigns.status.${statusKey}`);
   const canClaim = campaign.active && !expired;
 
   const secondsLeft = campaign.expiration - now;
@@ -32,24 +34,27 @@ export function CampaignCard({ campaign, onClaim, claiming }: Props) {
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="campaign-title">Campaign #{campaign.id}</h3>
-        <span className="badge" data-status={status.toLowerCase()}>
+        <span className="badge" data-status={statusKey}>
           {status}
         </span>
+        <span className="campaign-id">{t('campaigns.details.campaign')} #{campaign.id}</span>
       </div>
       <div className="card-body">
-        <div className="reward-container">
-          <p className="reward-label">Reward Amount</p>
-          <p className="reward-highlight">{campaign.reward_amount.toLocaleString()} LYT</p>
-        </div>
-        
-        <p className="expiry-text">
-          <span className="expiry-dot" data-urgency={urgency}></span>
-          {expiryText}
+        <p>
+          <strong>{t('campaigns.details.merchant')}:</strong>{" "}
+          <span className="mono">
+            {campaign.merchant.slice(0, 8)}…{campaign.merchant.slice(-4)}
+          </span>
         </p>
-
-        <p className="campaign-id">
-          Merchant: <span className="mono">{campaign.merchant.slice(0, 8)}…{campaign.merchant.slice(-4)}</span>
+        <p>
+          <strong>{t('campaigns.details.reward')}:</strong> {campaign.reward_amount.toLocaleString()} LYT
+        </p>
+        <p>
+          <strong>{t('campaigns.details.claimed')}:</strong> {campaign.total_claimed}
+        </p>
+        <p>
+          <strong>{t('campaigns.details.expires')}:</strong>{" "}
+          {new Date(campaign.expiration * 1000).toLocaleString()}
         </p>
       </div>
       {onClaim && (
@@ -59,7 +64,7 @@ export function CampaignCard({ campaign, onClaim, claiming }: Props) {
             disabled={!canClaim || claiming}
             className="btn btn-primary"
           >
-            {claiming ? "Claiming…" : "Claim Reward"}
+            {claiming ? t('campaigns.actions.claiming') : t('campaigns.actions.claim')}
           </button>
         </div>
       )}
