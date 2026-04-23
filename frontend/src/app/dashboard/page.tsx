@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { useI18n } from "@/context/I18nContext";
 import { api, Campaign, Reward } from "@/lib/api";
@@ -10,6 +10,8 @@ import { RewardList } from "@/components/RewardList";
 import { NetworkBanner } from "@/components/NetworkBanner";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
+const PAGE_SIZE = 20;
+
 export default function DashboardPage() {
   const { publicKey } = useWallet();
   const { health } = useNetworkStatus();
@@ -18,12 +20,37 @@ export default function DashboardPage() {
   const [claimingId, setClaimingId] = useState<number | null>(null);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [total, setTotal] = useState<number | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const networkDisabled = health.status === 'unreachable';
 
   useEffect(() => {
     api.getCampaigns().then((r) => setCampaigns(r.campaigns)).catch(console.error);
   }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadCampaigns(0, true);
+  }, [loadCampaigns]);
+
+  // Infinite scroll via IntersectionObserver
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingMore && total !== null && offset < total) {
+          loadCampaigns(offset);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadCampaigns, loadingMore, offset, total]);
 
   useEffect(() => {
     if (!publicKey) return;
@@ -63,6 +90,8 @@ export default function DashboardPage() {
       setRedeemingId(null);
     }
   };
+
+  const hasMore = total !== null && offset < total;
 
   return (
     <div>
