@@ -7,15 +7,19 @@ import { api, Campaign, Reward } from "@/lib/api";
 import { claimReward, redeemReward } from "@/lib/soroban";
 import { CampaignCard } from "@/components/CampaignCard";
 import { RewardList } from "@/components/RewardList";
+import { NetworkBanner } from "@/components/NetworkBanner";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
 export default function DashboardPage() {
   const { publicKey } = useWallet();
-  const { t } = useI18n();
+  const { health } = useNetworkStatus();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [claimingId, setClaimingId] = useState<number | null>(null);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const networkDisabled = health.status === 'unreachable';
 
   useEffect(() => {
     api.getCampaigns().then((r) => setCampaigns(r.campaigns)).catch(console.error);
@@ -27,7 +31,8 @@ export default function DashboardPage() {
   }, [publicKey]);
 
   const handleClaim = async (campaignId: number) => {
-    if (!publicKey) return setMessage({ type: "error", text: t('wallet.connectFirst') });
+    if (!publicKey) return setMessage({ type: "error", text: "Connect your wallet first" });
+    if (networkDisabled) return setMessage({ type: "error", text: "Network is unreachable" });
     setClaimingId(campaignId);
     setMessage(null);
     try {
@@ -44,6 +49,7 @@ export default function DashboardPage() {
 
   const handleRedeem = async (reward: Reward) => {
     if (!publicKey) return;
+    if (networkDisabled) return setMessage({ type: "error", text: "Network is unreachable" });
     setRedeemingId(reward.id);
     setMessage(null);
     try {
@@ -61,6 +67,8 @@ export default function DashboardPage() {
   return (
     <div>
       <h1 className="page-title">{t('dashboard.title')}</h1>
+
+      <NetworkBanner health={health} />
 
       {message && (
         <div className={`alert alert-${message.type}`}>{message.text}</div>
@@ -80,7 +88,7 @@ export default function DashboardPage() {
               <CampaignCard
                 key={c.id}
                 campaign={c}
-                onClaim={handleClaim}
+                onClaim={networkDisabled ? undefined : handleClaim}
                 claiming={claimingId === c.id}
               />
             ))}
@@ -93,7 +101,7 @@ export default function DashboardPage() {
           <h2 className="section-title">{t('rewards.title')}</h2>
           <RewardList
             rewards={rewards}
-            onRedeem={handleRedeem}
+            onRedeem={networkDisabled ? undefined : handleRedeem}
             redeeming={redeemingId}
           />
         </section>
