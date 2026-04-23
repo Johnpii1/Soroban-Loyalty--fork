@@ -23,11 +23,12 @@ export async function upsertCampaign(c: Omit<Campaign, "created_at">): Promise<v
   );
 }
 
-export async function getCampaigns(): Promise<Campaign[]> {
-  const { rows } = await pool.query<Campaign>(
-    `SELECT * FROM campaigns ORDER BY created_at DESC`
-  );
-  return rows;
+export async function getCampaigns(limit = 20, offset = 0): Promise<{ campaigns: Campaign[]; total: number }> {
+  const [{ rows }, { rows: countRows }] = await Promise.all([
+    pool.query<Campaign>(`SELECT * FROM campaigns ORDER BY created_at DESC LIMIT $1 OFFSET $2`, [limit, offset]),
+    pool.query<{ count: string }>(`SELECT COUNT(*) FROM campaigns`),
+  ]);
+  return { campaigns: rows, total: parseInt(countRows[0].count, 10) };
 }
 
 export async function getCampaignById(id: number): Promise<Campaign | null> {

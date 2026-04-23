@@ -4,10 +4,12 @@ import { getCampaigns, getCampaignById } from "../services/campaign.service";
 
 export const campaignRouter = Router();
 
-campaignRouter.get("/", async (_req: Request, res: Response) => {
+campaignRouter.get("/", async (req: Request, res: Response) => {
   try {
-    const campaigns = await getCampaigns();
-    res.json({ campaigns });
+    const limit = Math.min(parseInt(String(req.query.limit ?? "20"), 10) || 20, 100);
+    const offset = parseInt(String(req.query.offset ?? "0"), 10) || 0;
+    const result = await getCampaigns(limit, offset);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch campaigns" });
   }

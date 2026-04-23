@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { api, Campaign, Reward } from "@/lib/api";
 import { claimReward, redeemReward } from "@/lib/soroban";
 import { CampaignCard } from "@/components/CampaignCard";
 import { RewardList } from "@/components/RewardList";
+
+const PAGE_SIZE = 20;
 
 export default function DashboardPage() {
   const { publicKey } = useWallet();
@@ -14,10 +16,45 @@ export default function DashboardPage() {
   const [claimingId, setClaimingId] = useState<number | null>(null);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [total, setTotal] = useState<number | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    api.getCampaigns().then((r) => setCampaigns(r.campaigns)).catch(console.error);
+  const loadCampaigns = useCallback(async (currentOffset: number, replace = false) => {
+    setLoadingMore(true);
+    try {
+      const r = await api.getCampaigns(PAGE_SIZE, currentOffset);
+      setCampaigns((prev) => replace ? r.campaigns : [...prev, ...r.campaigns]);
+      setTotal(r.total);
+      setOffset(currentOffset + r.campaigns.length);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMore(false);
+    }
   }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadCampaigns(0, true);
+  }, [loadCampaigns]);
+
+  // Infinite scroll via IntersectionObserver
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingMore && total !== null && offset < total) {
+          loadCampaigns(offset);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadCampaigns, loadingMore, offset, total]);
 
   useEffect(() => {
     if (!publicKey) return;
@@ -56,6 +93,8 @@ export default function DashboardPage() {
     }
   };
 
+  const hasMore = total !== null && offset < total;
+
   return (
     <div>
       <h1 className="page-title">Dashboard</h1>
@@ -70,19 +109,35 @@ export default function DashboardPage() {
 
       <section>
         <h2 className="section-title">Active Campaigns</h2>
-        {campaigns.length === 0 ? (
+        {campaigns.length === 0 && !loadingMore ? (
           <p className="empty-state">No campaigns available.</p>
         ) : (
-          <div className="grid">
-            {campaigns.map((c) => (
-              <CampaignCard
-                key={c.id}
-                campaign={c}
-                onClaim={handleClaim}
-                claiming={claimingId === c.id}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid">
+              {campaigns.map((c) => (
+                <CampaignCard
+                  key={c.id}
+                  campaign={c}
+                  onClaim={handleClaim}
+                  claiming={claimingId === c.id}
+                />
+              ))}
+            </div>
+
+            {/* Sentinel for IntersectionObserver */}
+            <div ref={sentinelRef} style={{ height: 1 }} />
+
+            {loadingMore && (
+              <p style={{ textAlign: "center", color: "#94a3b8", padding: "20px 0" }}>
+                Loading more campaigns…
+              </p>
+            )}
+            {!hasMore && campaigns.length > 0 && (
+              <p style={{ textAlign: "center", color: "#64748b", padding: "20px 0", fontSize: "0.875rem" }}>
+                No more campaigns
+              </p>
+            )}
+          </>
         )}
       </section>
 
