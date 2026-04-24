@@ -1,20 +1,23 @@
 "use client";
 
 import { Campaign } from "@/lib/api";
+import { Confetti } from "./Confetti";
 
 interface Props {
   campaign: Campaign;
   onClaim?: (id: number) => void;
   claiming?: boolean;
+  justClaimed?: boolean;
 }
 
-export function CampaignCard({ campaign, onClaim, claiming }: Props) {
+export function CampaignCard({ campaign, onClaim, claiming, justClaimed }: Props) {
   const expired = Date.now() / 1000 > campaign.expiration;
   const status = !campaign.active ? "Inactive" : expired ? "Expired" : "Active";
   const canClaim = campaign.active && !expired;
 
   return (
-    <div className="card">
+    <div className="card" style={{ position: "relative" }}>
+      <Confetti active={!!justClaimed} />
       <div className="card-header">
         <span className="badge" data-status={status.toLowerCase()}>
           {status}
@@ -46,7 +49,7 @@ export function CampaignCard({ campaign, onClaim, claiming }: Props) {
             disabled={!canClaim || claiming}
             className="btn btn-primary"
           >
-            {claiming ? "Claiming…" : "Claim Reward"}
+            {claiming ? "Claiming…" : justClaimed ? "✓ Claimed!" : "Claim Reward"}
           </button>
         </div>
       )}
