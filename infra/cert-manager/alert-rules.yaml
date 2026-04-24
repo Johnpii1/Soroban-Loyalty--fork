@@ -1,0 +1,41 @@
+# Prometheus alerting rules for TLS certificate expiry
+# Apply via your Prometheus Operator PrometheusRule CRD or include in prometheus.yml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cert-expiry-alerts
+  namespace: monitoring
+  labels:
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+    - name: certificate-expiry
+      rules:
+        # Alert 30 days before expiry (safety net)
+        - alert: CertificateExpiringSoon
+          expr: |
+            certmanager_certificate_expiration_timestamp_seconds
+            - time() < 30 * 24 * 3600
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "TLS certificate expiring in < 30 days"
+            description: >
+              Certificate {{ $labels.name }} in namespace {{ $labels.namespace }}
+              expires in {{ $value | humanizeDuration }}.
+            runbook: "https://github.com/Dev-Odun-oss/Soroban-Loyalty/wiki/Runbooks#ssl-renewal"
+
+        # Alert immediately on renewal failure
+        - alert: CertificateRenewalFailed
+          expr: certmanager_certificate_ready_status{condition="False"} == 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "TLS certificate renewal failed"
+            description: >
+              Certificate {{ $labels.name }} in namespace {{ $labels.namespace }}
+              is not ready. Renewal may have failed.
+            runbook: "https://github.com/Dev-Odun-oss/Soroban-Loyalty/wiki/Runbooks#ssl-renewal"

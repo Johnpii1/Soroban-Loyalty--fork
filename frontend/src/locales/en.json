@@ -1,0 +1,71 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "selectLanguage": "Select Language"
+  },
+  "header": {
+    "title": "SorobanLoyalty",
+    "dashboard": "Dashboard",
+    "merchant": "Merchant",
+    "analytics": "Analytics"
+  },
+  "campaigns": {
+    "title": "Active Campaigns",
+    "noCampaigns": "No campaigns available.",
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "expired": "Expired"
+    },
+    "actions": {
+      "claim": "Claim Reward",
+      "claiming": "Claiming..."
+    },
+    "details": {
+      "merchant": "Merchant",
+      "reward": "Reward",
+      "claimed": "Claimed",
+      "expires": "Expires",
+      "campaign": "Campaign"
+    }
+  },
+  "rewards": {
+    "title": "My Rewards",
+    "noRewards": "No rewards yet. Claim a campaign to get started.",
+    "available": "Available",
+    "redeemed": "Redeemed {amount} LYT",
+    "actions": {
+      "redeem": "Redeem",
+      "redeeming": "Redeeming..."
+    }
+  },
+  "network": {
+    "connected": "Connected",
+    "degraded": "Network Issues",
+    "unreachable": "Offline",
+    "lastChecked": "Last checked: {time}",
+    "banner": {
+      "degraded": "Network connection is experiencing issues. Some features may be limited.",
+      "unreachable": "Unable to connect to the network. Transactions are currently disabled."
+    }
+  },
+  "wallet": {
+    "connect": "Connect Wallet",
+    "connected": "Connected",
+    "connectFirst": "Connect your Freighter wallet to claim rewards.",
+    "networkUnreachable": "Network is unreachable"
+  },
+  "messages": {
+    "claimSuccess": "Reward claimed for campaign #{id}!",
+    "claimFailed": "Claim failed",
+    "redeemSuccess": "Redeemed {amount} LYT!",
+    "redeemFailed": "Redeem failed"
+  },
+  "dashboard": {
+    "title": "Dashboard"
+  }
+}
