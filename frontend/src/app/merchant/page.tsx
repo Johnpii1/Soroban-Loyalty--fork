@@ -15,7 +15,8 @@ export default function MerchantPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const loadCampaigns = async () => {
-    const r = await api.getCampaigns();
+    // Fetch all merchant campaigns (up to 100) for the merchant portal
+    const r = await api.getCampaigns(100, 0);
     if (publicKey) {
       setCampaigns(r.campaigns.filter((c) => c.merchant === publicKey));
     } else {

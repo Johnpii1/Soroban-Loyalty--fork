@@ -1,6 +1,7 @@
 "use client";
 
 import { Reward } from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 
 interface Props {
   rewards: Reward[];
@@ -9,8 +10,10 @@ interface Props {
 }
 
 export function RewardList({ rewards, onRedeem, redeeming }: Props) {
+  const { t } = useI18n();
+
   if (rewards.length === 0) {
-    return <p className="empty-state">No rewards yet. Claim a campaign to get started.</p>;
+    return <p className="empty-state">{t('rewards.noRewards')}</p>;
   }
 
   return (
@@ -18,11 +21,11 @@ export function RewardList({ rewards, onRedeem, redeeming }: Props) {
       {rewards.map((r) => (
         <li key={r.id} className="reward-item">
           <div>
-            <strong>Campaign #{r.campaign_id}</strong>
+            <strong>{t('campaigns.details.campaign')} #{r.campaign_id}</strong>
             <span className="reward-amount">{r.amount.toLocaleString()} LYT</span>
           </div>
           <div className="reward-meta">
-            <span>{r.redeemed ? `Redeemed ${r.redeemed_amount} LYT` : "Available"}</span>
+            <span>{r.redeemed ? t('rewards.redeemed', { amount: r.redeemed_amount.toString() }) : t('rewards.available')}</span>
             <span>{new Date(r.claimed_at).toLocaleDateString()}</span>
           </div>
           {onRedeem && !r.redeemed && (
@@ -31,7 +34,7 @@ export function RewardList({ rewards, onRedeem, redeeming }: Props) {
               disabled={redeeming === r.id}
               className="btn btn-secondary"
             >
-              {redeeming === r.id ? "Redeeming…" : "Redeem"}
+              {redeeming === r.id ? t('rewards.actions.redeeming') : t('rewards.actions.redeem')}
             </button>
           )}
         </li>

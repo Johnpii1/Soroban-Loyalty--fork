@@ -32,7 +32,8 @@ export interface Reward {
 }
 
 export const api = {
-  getCampaigns: () => apiFetch<{ campaigns: Campaign[] }>("/campaigns"),
+  getCampaigns: (limit = 20, offset = 0) =>
+    apiFetch<{ campaigns: Campaign[]; total: number }>(`/campaigns?limit=${limit}&offset=${offset}`),
   getCampaign: (id: number) => apiFetch<{ campaign: Campaign }>(`/campaigns/${id}`),
   getUserRewards: (address: string) =>
     apiFetch<{ rewards: Reward[] }>(`/user/${address}/rewards`),
