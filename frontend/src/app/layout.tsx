@@ -11,6 +11,9 @@ import "./globals.css";
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>
         <WalletProvider>
           <LayoutContent>{children}</LayoutContent>

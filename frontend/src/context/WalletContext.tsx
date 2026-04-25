@@ -10,7 +10,7 @@ interface WalletCtx {
   disconnect: () => void;
 }
 
-const WalletContext = createContext<WalletCtx>({
+export const WalletContext = createContext<WalletCtx>({
   publicKey: null,
   connecting: false,
   connect: async () => {},

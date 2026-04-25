@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { api, Campaign } from "@/lib/api";
 import { createCampaign } from "@/lib/soroban";
-import { CampaignCard } from "@/components/CampaignCard";
-import { EmptyState } from "@/components/EmptyState";
+import { CampaignTable } from "@/components/CampaignTable";
 
 export default function MerchantPage() {
   const { publicKey } = useWallet();
@@ -25,9 +24,7 @@ export default function MerchantPage() {
     }
   };
 
-  useEffect(() => {
-    loadCampaigns().catch(console.error);
-  }, [publicKey]);
+  useEffect(() => { loadCampaigns().catch(console.error); }, [publicKey]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +47,11 @@ export default function MerchantPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Deactivate is a local optimistic update (no backend endpoint yet)
+  const handleDeactivate = async (id: number) => {
+    setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, active: false } : c)));
   };
 
   return (
@@ -95,20 +97,7 @@ export default function MerchantPage() {
 
       <section>
         <h2 className="section-title">My Campaigns</h2>
-        {campaigns.length === 0 ? (
-          <EmptyState
-            illustration="campaigns"
-            title="No campaigns yet."
-            description="Create your first campaign above to start rewarding customers with LYT tokens."
-            cta={{ label: "Browse campaigns", href: "/dashboard" }}
-          />
-        ) : (
-          <div className="grid">
-            {campaigns.map((c) => (
-              <CampaignCard key={c.id} campaign={c} />
-            ))}
-          </div>
-        )}
+        <CampaignTable campaigns={campaigns} onDeactivate={handleDeactivate} />
       </section>
     </div>
   );
