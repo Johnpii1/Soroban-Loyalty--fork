@@ -8,6 +8,41 @@ body {
   min-height: 100vh;
 }
 
+/* ── Keyboard / Focus ─────────────────────────────────────────────────────── */
+/* Remove default outline only when using mouse; keep for keyboard */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid #7c6af7;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skip-to-content link for keyboard users */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  z-index: 9999;
+  padding: 8px 16px;
+  background: #7c6af7;
+  color: #fff;
+  border-radius: 0 0 8px 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.1s;
+}
+.skip-link:focus-visible { top: 0; outline: 2px solid #fff; outline-offset: 2px; }
+
+/* Nav links */
+.site-header nav a:focus-visible { outline: 2px solid #7c6af7; outline-offset: 3px; border-radius: 4px; }
+
+/* Buttons */
+.btn:focus-visible { outline: 2px solid #7c6af7; outline-offset: 2px; border-radius: 8px; }
+
+/* Logo */
+.logo:focus-visible { outline: 2px solid #7c6af7; outline-offset: 3px; border-radius: 4px; }
+
 /* ── Layout ───────────────────────────────────────────────────────────────── */
 .site-header {
   display: flex;
@@ -167,6 +202,25 @@ body {
   font-size: 0.9rem;
 }
 .form-group input:focus { outline: none; border-color: #7c6af7; }
+.form-group input:focus-visible { outline: 2px solid #7c6af7; outline-offset: 0; border-color: #7c6af7; }
+
+/* Select elements */
+select:focus-visible {
+  outline: 2px solid #7c6af7;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Language switcher */
+.language-switcher {
+  background: #1a1d27;
+  border: 1px solid #2d3148;
+  border-radius: 6px;
+  color: #e2e8f0;
+  padding: 4px 8px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
 .stat-card {
   background: #1a1d27;

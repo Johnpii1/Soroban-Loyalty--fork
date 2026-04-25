@@ -25,9 +25,10 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <header className="site-header">
         <a href="/" className="logo">SorobanLoyalty</a>
-        <nav>
+        <nav aria-label="Main navigation">
           <a href="/dashboard">Dashboard</a>
           <a href="/merchant">Merchant</a>
           <a href="/analytics">Analytics</a>
@@ -35,7 +36,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         <NetworkStatusIndicator health={health} />
         <WalletConnector />
       </header>
-      <main className="site-main">{children}</main>
+      <main id="main-content" className="site-main" tabIndex={-1}>{children}</main>
     </>
   );
 }
