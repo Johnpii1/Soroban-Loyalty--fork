@@ -1,84 +1,171 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, Campaign } from "@/lib/api";
+import dynamic from "next/dynamic";
+import { api, AnalyticsData } from "@/lib/api";
+
+// Dynamically import Recharts components (client-only)
+const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), { ssr: false });
+const Bar = dynamic(() => import("recharts").then((m) => m.Bar), { ssr: false });
+const LineChart = dynamic(() => import("recharts").then((m) => m.LineChart), { ssr: false });
+const Line = dynamic(() => import("recharts").then((m) => m.Line), { ssr: false });
+const XAxis = dynamic(() => import("recharts").then((m) => m.XAxis), { ssr: false });
+const YAxis = dynamic(() => import("recharts").then((m) => m.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => import("recharts").then((m) => m.CartesianGrid), { ssr: false });
+const Tooltip = dynamic(() => import("recharts").then((m) => m.Tooltip), { ssr: false });
+const ResponsiveContainer = dynamic(() => import("recharts").then((m) => m.ResponsiveContainer), { ssr: false });
+
+const DATE_RANGES = [
+  { label: "Last 7 days", value: 7 },
+  { label: "Last 30 days", value: 30 },
+  { label: "Last 90 days", value: 90 },
+];
 
 export default function AnalyticsPage() {
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [days, setDays] = useState(30);
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.getCampaigns().then((r) => setCampaigns(r.campaigns)).catch(console.error);
-  }, []);
-
-  const totalClaimed = campaigns.reduce((s, c) => s + c.total_claimed, 0);
-  const activeCampaigns = campaigns.filter(
-    (c) => c.active && Date.now() / 1000 < c.expiration
-  ).length;
-  const totalRewardsIssued = campaigns.reduce(
-    (s, c) => s + c.reward_amount * c.total_claimed,
-    0
-  );
+    setLoading(true);
+    setError(null);
+    api
+      .getAnalytics(days)
+      .then(setData)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [days]);
 
   return (
     <div>
-      <h1 className="page-title">Analytics</h1>
-
-      <div className="stat-grid">
-        <div className="stat-card">
-          <div className="stat-value">{campaigns.length}</div>
-          <div className="stat-label">Total Campaigns</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{activeCampaigns}</div>
-          <div className="stat-label">Active Campaigns</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{totalClaimed.toLocaleString()}</div>
-          <div className="stat-label">Total Claims</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{totalRewardsIssued.toLocaleString()}</div>
-          <div className="stat-label">LYT Issued</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+        <h1 className="page-title" style={{ marginBottom: 0 }}>Analytics</h1>
+        <div style={{ display: "flex", gap: 8 }}>
+          {DATE_RANGES.map((r) => (
+            <button
+              key={r.value}
+              onClick={() => setDays(r.value)}
+              className={`btn ${days === r.value ? "btn-primary" : "btn-secondary"}`}
+            >
+              {r.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      <h2 className="section-title">Campaign Performance</h2>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ borderBottom: "1px solid #2d3148", color: "#64748b", fontSize: "0.8rem" }}>
-            <th style={{ textAlign: "left", padding: "8px 12px" }}>ID</th>
-            <th style={{ textAlign: "left", padding: "8px 12px" }}>Merchant</th>
-            <th style={{ textAlign: "right", padding: "8px 12px" }}>Reward</th>
-            <th style={{ textAlign: "right", padding: "8px 12px" }}>Claims</th>
-            <th style={{ textAlign: "right", padding: "8px 12px" }}>Total Issued</th>
-            <th style={{ textAlign: "left", padding: "8px 12px" }}>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {campaigns.map((c) => {
-            const expired = Date.now() / 1000 > c.expiration;
-            const status = !c.active ? "Inactive" : expired ? "Expired" : "Active";
-            return (
-              <tr key={c.id} style={{ borderBottom: "1px solid #1a1d27" }}>
-                <td style={{ padding: "10px 12px" }}>#{c.id}</td>
-                <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: "0.8rem" }}>
-                  {c.merchant.slice(0, 8)}…
-                </td>
-                <td style={{ padding: "10px 12px", textAlign: "right" }}>
-                  {c.reward_amount.toLocaleString()} LYT
-                </td>
-                <td style={{ padding: "10px 12px", textAlign: "right" }}>{c.total_claimed}</td>
-                <td style={{ padding: "10px 12px", textAlign: "right" }}>
-                  {(c.reward_amount * c.total_claimed).toLocaleString()} LYT
-                </td>
-                <td style={{ padding: "10px 12px" }}>
-                  <span className="badge" data-status={status.toLowerCase()}>{status}</span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      {error && <div className="alert alert-error">{error}</div>}
+
+      {loading ? (
+        <p className="empty-state">Loading analytics…</p>
+      ) : data ? (
+        <>
+          {/* Stat cards */}
+          <div className="stat-grid">
+            <div className="stat-card">
+              <div className="stat-value">{data.totalClaims.toLocaleString()}</div>
+              <div className="stat-label">Total Claims</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{data.totalLYT.toLocaleString()}</div>
+              <div className="stat-label">LYT Distributed</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{data.redemptionRate}%</div>
+              <div className="stat-label">Redemption Rate</div>
+            </div>
+          </div>
+
+          {/* Bar chart: claims per campaign */}
+          <h2 className="section-title">Claims per Campaign</h2>
+          {data.claimsPerCampaign.length > 0 ? (
+            <>
+              <div style={{ width: "100%", height: 280 }} aria-hidden="true">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.claimsPerCampaign} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="name" tick={{ fill: "var(--text-muted)", fontSize: 12 }} />
+                    <YAxis tick={{ fill: "var(--text-muted)", fontSize: 12 }} />
+                    <Tooltip
+                      contentStyle={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 8 }}
+                      labelStyle={{ color: "var(--text-primary)" }}
+                    />
+                    <Bar dataKey="claims" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              {/* Accessible data table fallback */}
+              <details style={{ marginTop: 8 }}>
+                <summary style={{ cursor: "pointer", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                  View data table
+                </summary>
+                <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid var(--border)", color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                      <th style={{ textAlign: "left", padding: "6px 12px" }}>Campaign</th>
+                      <th style={{ textAlign: "right", padding: "6px 12px" }}>Claims</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.claimsPerCampaign.map((row) => (
+                      <tr key={row.name} style={{ borderBottom: "1px solid var(--border)" }}>
+                        <td style={{ padding: "8px 12px" }}>{row.name}</td>
+                        <td style={{ padding: "8px 12px", textAlign: "right" }}>{row.claims}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            </>
+          ) : (
+            <p className="empty-state">No claim data for this period.</p>
+          )}
+
+          {/* Line chart: claims over time */}
+          <h2 className="section-title" style={{ marginTop: 40 }}>Claims Over Time</h2>
+          {data.claimsOverTime.length > 0 ? (
+            <>
+              <div style={{ width: "100%", height: 280 }} aria-hidden="true">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={data.claimsOverTime} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="date" tick={{ fill: "var(--text-muted)", fontSize: 11 }} />
+                    <YAxis tick={{ fill: "var(--text-muted)", fontSize: 12 }} />
+                    <Tooltip
+                      contentStyle={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 8 }}
+                      labelStyle={{ color: "var(--text-primary)" }}
+                    />
+                    <Line type="monotone" dataKey="claims" stroke="var(--accent)" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <details style={{ marginTop: 8 }}>
+                <summary style={{ cursor: "pointer", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                  View data table
+                </summary>
+                <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid var(--border)", color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                      <th style={{ textAlign: "left", padding: "6px 12px" }}>Date</th>
+                      <th style={{ textAlign: "right", padding: "6px 12px" }}>Claims</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.claimsOverTime.map((row) => (
+                      <tr key={row.date} style={{ borderBottom: "1px solid var(--border)" }}>
+                        <td style={{ padding: "8px 12px" }}>{row.date}</td>
+                        <td style={{ padding: "8px 12px", textAlign: "right" }}>{row.claims}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            </>
+          ) : (
+            <p className="empty-state">No time-series data for this period.</p>
+          )}
+        </>
+      ) : null}
     </div>
   );
 }

@@ -19,6 +19,8 @@ export default function DashboardPage() {
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [claimingId, setClaimingId] = useState<number | null>(null);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
+  // Optimistic: set of campaign IDs the user has claimed this session
+  const [optimisticClaimed, setOptimisticClaimed] = useState<Set<number>>(new Set());
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState<number | null>(null);
@@ -62,6 +64,11 @@ export default function DashboardPage() {
     if (networkDisabled) return setMessage({ type: "error", text: "Network is unreachable" });
     setClaimingId(campaignId);
     setMessage(null);
+
+    // Optimistic update: mark as claimed immediately
+    setOptimisticClaimed((prev) => new Set(prev).add(campaignId));
+    setClaimingId(campaignId);
+
     try {
       await claimReward(publicKey, campaignId);
       setMessage({ type: "success", text: t('messages.claimSuccess', { id: campaignId.toString() }) });
@@ -119,6 +126,7 @@ export default function DashboardPage() {
                 campaign={c}
                 onClaim={networkDisabled ? undefined : handleClaim}
                 claiming={claimingId === c.id}
+                optimisticClaimed={optimisticClaimed.has(c.id)}
               />
             ))}
           </div>

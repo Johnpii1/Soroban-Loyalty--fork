@@ -7,6 +7,7 @@ interface Props {
   campaign: Campaign;
   onClaim?: (id: number) => void;
   claiming?: boolean;
+  optimisticClaimed?: boolean;
 }
 
 export function CampaignCard({ campaign, onClaim, claiming }: Props) {
