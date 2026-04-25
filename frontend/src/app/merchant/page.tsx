@@ -5,6 +5,7 @@ import { useWallet } from "@/context/WalletContext";
 import { api, Campaign } from "@/lib/api";
 import { createCampaign } from "@/lib/soroban";
 import { CampaignCard } from "@/components/CampaignCard";
+import { HelpIcon } from "@/components/HelpIcon";
 
 export default function MerchantPage() {
   const { publicKey } = useWallet();
@@ -65,7 +66,7 @@ export default function MerchantPage() {
         <h2 className="section-title">Create Campaign</h2>
         <form onSubmit={handleCreate}>
           <div className="form-group">
-            <label>Reward Amount (LYT)</label>
+            <label>Reward Amount (LYT) <HelpIcon faqId="what-is-lyt" label="What is LYT?" /></label>
             <input
               type="number"
               min="1"

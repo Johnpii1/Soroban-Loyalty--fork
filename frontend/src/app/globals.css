@@ -275,3 +275,45 @@ body {
   }
 }
 
+
+/* ── FAQ / Help ───────────────────────────────────────────────────────────── */
+.faq-question {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: none;
+  border: none;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.faq-question:hover { background: rgba(124, 106, 247, 0.08); }
+.faq-question:focus-visible { outline: 2px solid #7c6af7; outline-offset: -2px; border-radius: 12px; }
+.faq-chevron { font-size: 0.7rem; color: #64748b; flex-shrink: 0; }
+.faq-answer { padding: 0 20px 16px; color: #94a3b8; font-size: 0.9rem; line-height: 1.7; display: flex; flex-direction: column; gap: 4px; }
+
+/* ── Help icon ────────────────────────────────────────────────────────────── */
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #2d3148;
+  color: #94a3b8;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid #4a5568;
+  cursor: help;
+  vertical-align: middle;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+.help-icon:hover { background: #7c6af7; color: #fff; border-color: #7c6af7; }
+.help-icon:focus-visible { outline: 2px solid #7c6af7; outline-offset: 2px; }

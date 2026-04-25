@@ -31,6 +31,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           <a href="/dashboard">Dashboard</a>
           <a href="/merchant">Merchant</a>
           <a href="/analytics">Analytics</a>
+          <a href="/help">Help</a>
         </nav>
         <NetworkStatusIndicator health={health} />
         <WalletConnector />
