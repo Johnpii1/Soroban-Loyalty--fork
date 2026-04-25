@@ -5,6 +5,7 @@ import { useWallet } from "@/context/WalletContext";
 import { api, Campaign } from "@/lib/api";
 import { createCampaign } from "@/lib/soroban";
 import { CampaignCard } from "@/components/CampaignCard";
+import { SortableCampaignList } from "@/components/SortableCampaignList";
 
 export default function MerchantPage() {
   const { publicKey } = useWallet();
@@ -94,14 +95,13 @@ export default function MerchantPage() {
 
       <section>
         <h2 className="section-title">My Campaigns</h2>
+        <p style={{ fontSize: "0.8rem", color: "#64748b", marginBottom: 12 }}>
+          Drag rows to reorder how campaigns appear in the public listing.
+        </p>
         {campaigns.length === 0 ? (
           <p className="empty-state">No campaigns yet.</p>
         ) : (
-          <div className="grid">
-            {campaigns.map((c) => (
-              <CampaignCard key={c.id} campaign={c} />
-            ))}
-          </div>
+          <SortableCampaignList initialCampaigns={campaigns} />
         )}
       </section>
     </div>

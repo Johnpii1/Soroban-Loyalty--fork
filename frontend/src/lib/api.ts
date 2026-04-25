@@ -37,4 +37,9 @@ export const api = {
   getCampaign: (id: number) => apiFetch<{ campaign: Campaign }>(`/campaigns/${id}`),
   getUserRewards: (address: string) =>
     apiFetch<{ rewards: Reward[] }>(`/user/${address}/rewards`),
+  reorderCampaigns: (order: number[]) =>
+    apiFetch<{ ok: boolean }>("/campaigns/reorder", {
+      method: "PATCH",
+      body: JSON.stringify({ order }),
+    }),
 };

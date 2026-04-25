@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
     expiration      BIGINT NOT NULL,   -- unix timestamp
     active          BOOLEAN NOT NULL DEFAULT TRUE,
     total_claimed   BIGINT NOT NULL DEFAULT 0,
+    display_order   INT NOT NULL DEFAULT 0,
     tx_hash         VARCHAR(64),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
