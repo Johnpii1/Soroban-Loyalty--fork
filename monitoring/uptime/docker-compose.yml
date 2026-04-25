@@ -1,0 +1,20 @@
+version: "3.9"
+
+# Self-hosted uptime monitoring stack using Uptime Kuma
+# Access dashboard at http://localhost:3002
+# Status page at http://localhost:3002/status/soroban-loyalty
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: soroban-loyalty-uptime
+    restart: unless-stopped
+    volumes:
+      - uptime_kuma_data:/app/data
+    ports:
+      - "3002:3001"
+    environment:
+      - UPTIME_KUMA_PORT=3001
+
+volumes:
+  uptime_kuma_data:

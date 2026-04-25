@@ -1,6 +1,5 @@
 /**
  * Freighter wallet integration helpers.
- * Uses the @freighter-api/freighter-api package.
  */
 import freighter from "@stellar/freighter-api";
 

@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { campaignRouter } from "./routes/campaign.routes";
 import { rewardRouter } from "./routes/reward.routes";
+import { analyticsRouter } from "./routes/analytics.routes";
 import { startIndexer } from "./indexer/indexer";
 import { rpcServer } from "./soroban";
 import { pool } from "./db";
@@ -55,6 +56,7 @@ app.get("/health", async (_req, res) => {
 
 app.use("/campaigns", campaignRouter);
 app.use("/", rewardRouter);
+app.use("/analytics", analyticsRouter);
 
 // Global error handler — logs + alerts on unhandled errors
 app.use(errorAlertMiddleware);

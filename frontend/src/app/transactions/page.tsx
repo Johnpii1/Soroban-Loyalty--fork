@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { api, Reward } from "@/lib/api";
 import { ExportService, Transaction, DateRange } from "@/lib/export";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function TransactionsPage() {
   const { publicKey } = useWallet();
@@ -142,7 +143,12 @@ export default function TransactionsPage() {
       )}
 
       {filteredTransactions.length === 0 ? (
-        <p className="empty-state">No transactions found.</p>
+        <EmptyState
+          illustration="transactions"
+          title="No transactions found."
+          description={dateRange ? "No transactions match the selected date range. Try adjusting the filter." : "Your transaction history will appear here once you claim or redeem rewards."}
+          cta={!dateRange ? { label: "Claim your first reward", href: "/dashboard" } : undefined}
+        />
       ) : (
         <div className="transaction-table-container">
           <table className="transaction-table">
