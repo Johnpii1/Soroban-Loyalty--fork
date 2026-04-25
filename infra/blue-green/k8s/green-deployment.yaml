@@ -1,0 +1,119 @@
+# Green environment — the new version being deployed.
+# Traffic is switched here after health checks pass.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-green
+  namespace: soroban-loyalty
+  labels:
+    app: backend
+    slot: green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+      slot: green
+  template:
+    metadata:
+      labels:
+        app: backend
+        slot: green
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+      containers:
+        - name: backend
+          image: ghcr.io/dev-odun-oss/soroban-loyalty-backend:green
+          ports:
+            - containerPort: 3001
+          envFrom:
+            - configMapRef:
+                name: soroban-loyalty-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: soroban-loyalty-secrets
+                  key: DATABASE_URL
+            - name: REWARDS_CONTRACT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: soroban-loyalty-secrets
+                  key: REWARDS_CONTRACT_ID
+            - name: CAMPAIGN_CONTRACT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: soroban-loyalty-secrets
+                  key: CAMPAIGN_CONTRACT_ID
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-green
+  namespace: soroban-loyalty
+  labels:
+    app: frontend
+    slot: green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+      slot: green
+  template:
+    metadata:
+      labels:
+        app: frontend
+        slot: green
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+      containers:
+        - name: frontend
+          image: ghcr.io/dev-odun-oss/soroban-loyalty-frontend:green
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: soroban-loyalty-config
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10

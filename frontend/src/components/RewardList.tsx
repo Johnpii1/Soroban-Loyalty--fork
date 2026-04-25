@@ -2,6 +2,7 @@
 
 import { Reward } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
+import { EmptyState } from "@/components/EmptyState";
 
 interface Props {
   rewards: Reward[];
@@ -13,7 +14,14 @@ export function RewardList({ rewards, onRedeem, redeeming }: Props) {
   const { t } = useI18n();
 
   if (rewards.length === 0) {
-    return <p className="empty-state">{t('rewards.noRewards')}</p>;
+    return (
+      <EmptyState
+        illustration="rewards"
+        title={t('rewards.noRewards')}
+        description="Complete a campaign to earn LYT tokens."
+        cta={{ label: "Claim your first reward", href: "/dashboard" }}
+      />
+    );
   }
 
   return (

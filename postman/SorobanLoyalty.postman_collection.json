@@ -1,0 +1,291 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "SorobanLoyalty API",
+    "description": "Complete API collection for the SorobanLoyalty platform.\n\n## Authentication\nThis API has no token-based authentication on read endpoints. Claim and redeem operations are submitted directly to the Soroban RPC from the frontend (signed by Freighter wallet) — they are not exposed as REST endpoints.\n\n## Environments\nSelect one of the bundled environments before running requests:\n- **local** — `http://localhost:3001`\n- **testnet** — your deployed testnet backend URL\n- **mainnet** — your deployed mainnet backend URL\n\n## Stellar Address\nSet `stellar_address` in the active environment to a valid 56-character Stellar public key (G…) to test the rewards endpoint.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3001",
+      "description": "Override via environment"
+    },
+    {
+      "key": "stellar_address",
+      "value": "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN",
+      "description": "A valid 56-character Stellar public key"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Returns the health status of the backend service, including Stellar RPC reachability and database connectivity."
+          },
+          "response": [
+            {
+              "name": "200 Healthy",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/health",
+                  "host": ["{{base_url}}"],
+                  "path": ["health"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"healthy\",\n  \"checks\": {\n    \"stellar\": { \"reachable\": true, \"latency\": 42 },\n    \"database\": { \"connected\": true, \"responseTime\": 3 },\n    \"indexer\": { \"running\": true }\n  },\n  \"timestamp\": \"2026-04-25T14:00:00.000Z\",\n  \"uptime\": 3600.5\n}"
+            },
+            {
+              "name": "200 Degraded",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/health",
+                  "host": ["{{base_url}}"],
+                  "path": ["health"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"degraded\",\n  \"checks\": {\n    \"stellar\": { \"reachable\": false, \"latency\": 0 },\n    \"database\": { \"connected\": true, \"responseTime\": 5 },\n    \"indexer\": { \"running\": true }\n  },\n  \"timestamp\": \"2026-04-25T14:00:00.000Z\",\n  \"uptime\": 120.0\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Campaigns",
+      "item": [
+        {
+          "name": "GET /campaigns",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/campaigns?limit=20&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["campaigns"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Number of campaigns to return (max 100, default 20)"
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Pagination offset (default 0)"
+                }
+              ]
+            },
+            "description": "Returns a paginated list of all campaigns stored in the database.\n\n**Query Parameters**\n- `limit` (optional): max results per page, capped at 100, default 20\n- `offset` (optional): number of records to skip, default 0"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/campaigns?limit=20&offset=0",
+                  "host": ["{{base_url}}"],
+                  "path": ["campaigns"],
+                  "query": [
+                    { "key": "limit", "value": "20" },
+                    { "key": "offset", "value": "0" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"campaigns\": [\n    {\n      \"id\": 1,\n      \"merchant\": \"GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN\",\n      \"reward_amount\": 100,\n      \"expiration\": 1780000000,\n      \"active\": true,\n      \"created_at\": \"2026-04-01T10:00:00.000Z\"\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 20,\n  \"offset\": 0\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET /campaigns/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/campaigns/1",
+              "host": ["{{base_url}}"],
+              "path": ["campaigns", "1"]
+            },
+            "description": "Returns a single campaign by its numeric ID."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/campaigns/1",
+                  "host": ["{{base_url}}"],
+                  "path": ["campaigns", "1"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"campaign\": {\n    \"id\": 1,\n    \"merchant\": \"GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN\",\n    \"reward_amount\": 100,\n    \"expiration\": 1780000000,\n    \"active\": true,\n    \"created_at\": \"2026-04-01T10:00:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/campaigns/9999",
+                  "host": ["{{base_url}}"],
+                  "path": ["campaigns", "9999"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{ \"error\": \"Not found\" }"
+            },
+            {
+              "name": "400 Invalid ID",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/campaigns/abc",
+                  "host": ["{{base_url}}"],
+                  "path": ["campaigns", "abc"]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{ \"error\": \"Invalid id\" }"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rewards",
+      "item": [
+        {
+          "name": "GET /user/:address/rewards",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/user/{{stellar_address}}/rewards",
+              "host": ["{{base_url}}"],
+              "path": ["user", "{{stellar_address}}", "rewards"]
+            },
+            "description": "Returns all rewards associated with a Stellar public key.\n\n**Path Parameters**\n- `address`: a valid 56-character Stellar public key (starts with `G`)\n\nSet `stellar_address` in the active environment to your wallet address."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/user/GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN/rewards",
+                  "host": ["{{base_url}}"],
+                  "path": ["user", "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN", "rewards"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"rewards\": [\n    {\n      \"id\": \"reward-uuid-1234\",\n      \"campaign_id\": 1,\n      \"user_address\": \"GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN\",\n      \"amount\": 100,\n      \"redeemed\": false,\n      \"redeemed_amount\": 0,\n      \"claimed_at\": \"2026-04-10T12:00:00.000Z\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "400 Invalid Address",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/user/invalid/rewards",
+                  "host": ["{{base_url}}"],
+                  "path": ["user", "invalid", "rewards"]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{ \"error\": \"Invalid Stellar address\" }"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Soroban RPC (reference)",
+      "description": "Claim and redeem operations are NOT REST endpoints — they are submitted directly to the Soroban RPC by the frontend after being signed by the Freighter wallet.\n\nThe requests below are provided as reference only. In practice, the frontend constructs and submits these transactions via `@stellar/stellar-sdk`.\n\n**Soroban RPC endpoint**: `{{soroban_rpc_url}}`\n\n**Contracts**:\n- Token (LYT): `{{token_contract_id}}`\n- Campaign: `{{campaign_contract_id}}`\n- Rewards: `{{rewards_contract_id}}`",
+      "item": [
+        {
+          "name": "Claim Reward (Soroban RPC — reference)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{soroban_rpc_url}}",
+              "host": ["{{soroban_rpc_url}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"sendTransaction\",\n  \"params\": {\n    \"transaction\": \"<base64-encoded XDR signed by Freighter — call rewards.claim(user_address, campaign_id)>\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Submits a signed Soroban transaction to call `rewards.claim(user_address, campaign_id)` on the Rewards contract.\n\nThis is handled by the frontend (`frontend/src/lib/soroban.ts → claimReward`). The backend only indexes the resulting on-chain event."
+          },
+          "response": []
+        },
+        {
+          "name": "Redeem Reward (Soroban RPC — reference)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{soroban_rpc_url}}",
+              "host": ["{{soroban_rpc_url}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 2,\n  \"method\": \"sendTransaction\",\n  \"params\": {\n    \"transaction\": \"<base64-encoded XDR signed by Freighter — call rewards.redeem(user_address, amount)>\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Submits a signed Soroban transaction to call `rewards.redeem(user_address, amount)` on the Rewards contract, which burns LYT tokens.\n\nThis is handled by the frontend (`frontend/src/lib/soroban.ts → redeemReward`). The backend only indexes the resulting on-chain event."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

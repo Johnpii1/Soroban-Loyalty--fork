@@ -1,0 +1,80 @@
+name: Blue-Green Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: "Target slot to deploy into (blue or green)"
+        required: true
+        default: green
+
+jobs:
+  deploy:
+    name: Deploy to ${{ github.event.inputs.slot || 'green' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine target slot
+        id: slot
+        run: |
+          SLOT="${{ github.event.inputs.slot || 'green' }}"
+          echo "target=$SLOT" >> "$GITHUB_OUTPUT"
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Configure kubeconfig
+        run: |
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Build & push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/soroban-loyalty-backend:${{ steps.slot.outputs.target }}
+        env:
+          DOCKER_BUILDKIT: "1"
+
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/soroban-loyalty-frontend:${{ steps.slot.outputs.target }}
+
+      - name: Update image tags in deployment
+        run: |
+          SLOT="${{ steps.slot.outputs.target }}"
+          kubectl set image deployment/backend-$SLOT \
+            backend=ghcr.io/${{ github.repository_owner }}/soroban-loyalty-backend:$SLOT \
+            -n soroban-loyalty
+          kubectl set image deployment/frontend-$SLOT \
+            frontend=ghcr.io/${{ github.repository_owner }}/soroban-loyalty-frontend:$SLOT \
+            -n soroban-loyalty
+
+      - name: Wait for rollout
+        run: |
+          SLOT="${{ steps.slot.outputs.target }}"
+          kubectl rollout status deployment/backend-$SLOT -n soroban-loyalty --timeout=120s
+          kubectl rollout status deployment/frontend-$SLOT -n soroban-loyalty --timeout=120s
+
+      - name: Switch traffic to ${{ steps.slot.outputs.target }}
+        run: |
+          bash scripts/blue-green-switch.sh "${{ steps.slot.outputs.target }}"
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+          FRONTEND_URL: ${{ vars.FRONTEND_URL }}
+
+      - name: Scale down idle slot
+        if: success()
+        run: |
+          SLOT="${{ steps.slot.outputs.target }}"
+          IDLE_SLOT=$([[ "$SLOT" == "blue" ]] && echo "green" || echo "blue")
+          kubectl scale deployment/backend-$IDLE_SLOT frontend-$IDLE_SLOT \
+            -n soroban-loyalty --replicas=0

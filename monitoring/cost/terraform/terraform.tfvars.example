@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars and fill in your values
+# cp terraform.tfvars.example terraform.tfvars
+
+monthly_budget_usd = 200
+alert_email        = "team@sorobanloyalty.com"
+aws_region         = "us-east-1"

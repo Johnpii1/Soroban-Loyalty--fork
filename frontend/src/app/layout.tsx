@@ -1,42 +1,30 @@
-"use client";
-
 import type { Metadata } from "next";
 import { WalletProvider } from "@/context/WalletContext";
 import { I18nProvider } from "@/context/I18nContext";
+import { ToastProvider } from "@/context/ToastContext";
 import { WalletConnector } from "@/components/WalletConnector";
 import { NetworkStatusIndicator } from "@/components/NetworkStatusIndicator";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import "./globals.css";
 
+export const metadata: Metadata = {
+  title: "SorobanLoyalty",
+  description: "On-chain loyalty platform built on Stellar",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>
         <WalletProvider>
-          <LayoutContent>{children}</LayoutContent>
+          <ToastProvider>
+            <LayoutContent>{children}</LayoutContent>
+          </ToastProvider>
         </WalletProvider>
       </body>
     </html>
-  );
-}
-
-function LayoutContent({ children }: { children: React.ReactNode }) {
-  const { health } = useNetworkStatus();
-
-  return (
-    <>
-      <header className="site-header">
-        <a href="/" className="logo">SorobanLoyalty</a>
-        <nav>
-          <a href="/dashboard">Dashboard</a>
-          <a href="/merchant">Merchant</a>
-          <a href="/analytics">Analytics</a>
-          <a href="/help">Help</a>
-        </nav>
-        <NetworkStatusIndicator health={health} />
-        <WalletConnector />
-      </header>
-      <main className="site-main">{children}</main>
-    </>
   );
 }

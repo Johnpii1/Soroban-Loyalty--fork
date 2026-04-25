@@ -1,8 +1,7 @@
 /**
  * Freighter wallet integration helpers.
- * Uses the @freighter-api/freighter-api package.
  */
-import freighter from "@freighter-api/freighter-api";
+import freighter from "@stellar/freighter-api";
 
 export async function isFreighterInstalled(): Promise<boolean> {
   return freighter.isConnected();
