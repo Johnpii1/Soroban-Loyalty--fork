@@ -1,0 +1,39 @@
+{
+  "monitors": [
+    {
+      "name": "SorobanLoyalty Frontend",
+      "type": "http",
+      "url": "https://sorobanloyalty.com",
+      "interval": 60,
+      "alert_contacts": ["on-call-engineer"],
+      "alert_threshold": 1,
+      "keyword_type": "exists",
+      "keyword_value": "SorobanLoyalty"
+    },
+    {
+      "name": "SorobanLoyalty Backend API",
+      "type": "http",
+      "url": "https://api.sorobanloyalty.com/health",
+      "interval": 60,
+      "alert_contacts": ["on-call-engineer"],
+      "alert_threshold": 1,
+      "keyword_type": "exists",
+      "keyword_value": "ok"
+    },
+    {
+      "name": "Soroban RPC Node",
+      "type": "http",
+      "url": "https://rpc.sorobanloyalty.com/soroban/rpc",
+      "interval": 60,
+      "alert_contacts": ["on-call-engineer"],
+      "alert_threshold": 1
+    }
+  ],
+  "status_page": {
+    "name": "SorobanLoyalty Status",
+    "url": "status.sorobanloyalty.com",
+    "description": "Real-time status of SorobanLoyalty platform services",
+    "show_incident_history": true,
+    "incident_history_days": 90
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { Campaign } from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 
 interface Props {
   campaign: Campaign;
@@ -9,34 +10,51 @@ interface Props {
   optimisticClaimed?: boolean;
 }
 
-export function CampaignCard({ campaign, onClaim, claiming, optimisticClaimed }: Props) {
+export function CampaignCard({ campaign, onClaim, claiming }: Props) {
+  const { t } = useI18n();
   const expired = Date.now() / 1000 > campaign.expiration;
-  const status = !campaign.active ? "Inactive" : expired ? "Expired" : "Active";
-  const canClaim = campaign.active && !expired && !optimisticClaimed;
+  const statusKey = !campaign.active ? "inactive" : expired ? "expired" : "active";
+  const status = t(`campaigns.status.${statusKey}`);
+  const canClaim = campaign.active && !expired;
+
+  const secondsLeft = campaign.expiration - now;
+  const daysLeft = Math.floor(secondsLeft / 86400);
+  const hoursLeft = Math.floor((secondsLeft % 86400) / 3600);
+
+  let urgency: "low" | "medium" | "high" | "expired" = "low";
+  if (expired) urgency = "expired";
+  else if (daysLeft < 1) urgency = "high";
+  else if (daysLeft < 3) urgency = "medium";
+
+  const expiryText = expired
+    ? "Expired"
+    : daysLeft > 0
+    ? `${daysLeft}d ${hoursLeft}h left`
+    : `${hoursLeft}h left`;
 
   return (
     <div className="card">
       <div className="card-header">
-        <span className="badge" data-status={status.toLowerCase()}>
+        <span className="badge" data-status={statusKey}>
           {status}
         </span>
-        <span className="campaign-id">Campaign #{campaign.id}</span>
+        <span className="campaign-id">{t('campaigns.details.campaign')} #{campaign.id}</span>
       </div>
       <div className="card-body">
         <p>
-          <strong>Merchant:</strong>{" "}
+          <strong>{t('campaigns.details.merchant')}:</strong>{" "}
           <span className="mono">
             {campaign.merchant.slice(0, 8)}…{campaign.merchant.slice(-4)}
           </span>
         </p>
         <p>
-          <strong>Reward:</strong> {campaign.reward_amount.toLocaleString()} LYT
+          <strong>{t('campaigns.details.reward')}:</strong> {campaign.reward_amount.toLocaleString()} LYT
         </p>
         <p>
-          <strong>Claimed:</strong> {campaign.total_claimed}
+          <strong>{t('campaigns.details.claimed')}:</strong> {campaign.total_claimed}
         </p>
         <p>
-          <strong>Expires:</strong>{" "}
+          <strong>{t('campaigns.details.expires')}:</strong>{" "}
           {new Date(campaign.expiration * 1000).toLocaleString()}
         </p>
       </div>
@@ -47,7 +65,7 @@ export function CampaignCard({ campaign, onClaim, claiming, optimisticClaimed }:
             disabled={!canClaim || claiming}
             className="btn btn-primary"
           >
-            {optimisticClaimed ? "Claimed ✓" : claiming ? "Claiming…" : "Claim Reward"}
+            {claiming ? t('campaigns.actions.claiming') : t('campaigns.actions.claim')}
           </button>
         </div>
       )}

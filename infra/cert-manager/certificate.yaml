@@ -1,0 +1,22 @@
+# Wildcard TLS certificate covering all subdomains
+# DNS-01 challenge required for wildcard — uses Route53 here; swap solver for your DNS provider.
+# Apply: kubectl apply -f infra/cert-manager/certificate.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: soroban-loyalty-tls
+  namespace: default
+spec:
+  secretName: soroban-loyalty-tls-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  # Renew 30 days before expiry (cert-manager default is 2/3 of validity period;
+  # override here to satisfy the 30-day requirement)
+  renewBefore: 720h   # 30 days
+  dnsNames:
+    - ${DOMAIN}           # apex domain, e.g. soroban-loyalty.example.com
+    - "*.${DOMAIN}"       # wildcard covers all subdomains
+  privateKey:
+    algorithm: RSA
+    size: 2048
