@@ -18,6 +18,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    # Resource limits: postgres is the most resource-intensive service
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
 
   soroban-local:
     image: stellar/quickstart:latest
@@ -35,6 +44,15 @@ services:
       timeout: 10s
       retries: 20
       start_period: 30s
+    # Resource limits: local Stellar node — moderate usage
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
 
   backend:
     build:
@@ -61,6 +79,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    # Resource limits: backend + indexer — 512MB cap prevents indexer memory leaks
+    # from consuming host resources. OOM kills will appear in `docker inspect` State.OOMKilled.
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
 
   frontend:
     build:
@@ -78,6 +106,15 @@ services:
       NEXT_PUBLIC_CAMPAIGN_CONTRACT_ID: ${CAMPAIGN_CONTRACT_ID:-}
     ports:
       - "3000:3000"
+    # Resource limits: Next.js SSR — 256MB is sufficient for static/SSR pages
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
 
 volumes:
   postgres_data:

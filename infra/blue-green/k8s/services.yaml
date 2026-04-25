@@ -1,0 +1,32 @@
+# Active-slot Services — traffic is routed to whichever slot label is set.
+# To switch traffic: patch the selector slot label (blue ↔ green).
+# See scripts/blue-green-switch.sh for the automated switch procedure.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: soroban-loyalty
+  labels:
+    app: backend
+spec:
+  selector:
+    app: backend
+    slot: blue   # <-- change to "green" to switch traffic
+  ports:
+    - port: 80
+      targetPort: 3001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: soroban-loyalty
+  labels:
+    app: frontend
+spec:
+  selector:
+    app: frontend
+    slot: blue   # <-- change to "green" to switch traffic
+  ports:
+    - port: 80
+      targetPort: 3000

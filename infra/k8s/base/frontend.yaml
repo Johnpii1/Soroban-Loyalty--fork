@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: soroban-loyalty
+  labels:
+    app: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+      containers:
+        - name: frontend
+          image: ghcr.io/dev-odun-oss/soroban-loyalty-frontend:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: soroban-loyalty-config
+          env:
+            - name: NEXT_PUBLIC_REWARDS_CONTRACT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: soroban-loyalty-secrets
+                  key: REWARDS_CONTRACT_ID
+            - name: NEXT_PUBLIC_CAMPAIGN_CONTRACT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: soroban-loyalty-secrets
+                  key: CAMPAIGN_CONTRACT_ID
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: soroban-loyalty
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 3000

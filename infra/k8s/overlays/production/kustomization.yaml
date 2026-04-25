@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+  - ../../base
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+    target:
+      kind: Deployment
+      name: backend
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+    target:
+      kind: Deployment
+      name: frontend
+images:
+  - name: ghcr.io/dev-odun-oss/soroban-loyalty-backend
+    newTag: stable
+  - name: ghcr.io/dev-odun-oss/soroban-loyalty-frontend
+    newTag: stable

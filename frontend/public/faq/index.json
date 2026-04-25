@@ -1,0 +1,32 @@
+[
+  {
+    "id": "what-is-lyt",
+    "title": "What is LYT?",
+    "category": "tokens",
+    "file": "what-is-lyt.md"
+  },
+  {
+    "id": "how-to-claim",
+    "title": "How do I claim rewards?",
+    "category": "rewards",
+    "file": "how-to-claim.md"
+  },
+  {
+    "id": "how-to-redeem",
+    "title": "How do I redeem LYT tokens?",
+    "category": "rewards",
+    "file": "how-to-redeem.md"
+  },
+  {
+    "id": "what-is-freighter",
+    "title": "What is Freighter?",
+    "category": "wallet",
+    "file": "what-is-freighter.md"
+  },
+  {
+    "id": "create-campaign",
+    "title": "How do I create a campaign as a merchant?",
+    "category": "merchants",
+    "file": "create-campaign.md"
+  }
+]

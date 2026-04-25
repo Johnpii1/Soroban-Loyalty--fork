@@ -9,6 +9,7 @@ import { CampaignCard } from "@/components/CampaignCard";
 import { RewardList } from "@/components/RewardList";
 import { NetworkBanner } from "@/components/NetworkBanner";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { EmptyState } from "@/components/EmptyState";
 
 const PAGE_SIZE = 20;
 
@@ -19,6 +20,8 @@ export default function DashboardPage() {
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [claimingId, setClaimingId] = useState<number | null>(null);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
+  // Optimistic: set of campaign IDs the user has claimed this session
+  const [optimisticClaimed, setOptimisticClaimed] = useState<Set<number>>(new Set());
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState<number | null>(null);
@@ -62,6 +65,11 @@ export default function DashboardPage() {
     if (networkDisabled) return setMessage({ type: "error", text: "Network is unreachable" });
     setClaimingId(campaignId);
     setMessage(null);
+
+    // Optimistic update: mark as claimed immediately
+    setOptimisticClaimed((prev) => new Set(prev).add(campaignId));
+    setClaimingId(campaignId);
+
     try {
       await claimReward(publicKey, campaignId);
       setMessage({ type: "success", text: t('messages.claimSuccess', { id: campaignId.toString() }) });
@@ -110,7 +118,12 @@ export default function DashboardPage() {
       <section>
         <h2 className="section-title">{t('campaigns.title')}</h2>
         {campaigns.length === 0 ? (
-          <p className="empty-state">{t('campaigns.noCampaigns')}</p>
+          <EmptyState
+            illustration="campaigns"
+            title={t('campaigns.noCampaigns')}
+            description="There are no active campaigns right now. Check back soon!"
+            cta={{ label: "Browse campaigns", href: "/merchant" }}
+          />
         ) : (
           <div className="grid">
             {campaigns.map((c) => (
@@ -119,6 +132,7 @@ export default function DashboardPage() {
                 campaign={c}
                 onClaim={networkDisabled ? undefined : handleClaim}
                 claiming={claimingId === c.id}
+                optimisticClaimed={optimisticClaimed.has(c.id)}
               />
             ))}
           </div>
