@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: soroban-loyalty-config
+  namespace: soroban-loyalty
+data:
+  SOROBAN_RPC_URL: "https://soroban-testnet.stellar.org"
+  NETWORK_PASSPHRASE: "Test SDF Network ; September 2015"
+  PORT: "3001"
+  ENABLE_INDEXER: "true"
+  NEXT_PUBLIC_API_URL: "https://api.soroban-loyalty.example.com"
+  NEXT_PUBLIC_SOROBAN_RPC_URL: "https://soroban-testnet.stellar.org"
+  NEXT_PUBLIC_NETWORK_PASSPHRASE: "Test SDF Network ; September 2015"
