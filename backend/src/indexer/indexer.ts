@@ -8,6 +8,7 @@ import { upsertCampaign } from "../services/campaign.service";
 import { upsertReward, recordTransaction } from "../services/reward.service";
 import { pool } from "../db";
 import { logger } from "../logger";
+import { indexerLagBlocks, indexerEventsTotal } from "../metrics";
 
 const REWARDS_CONTRACT = process.env.REWARDS_CONTRACT_ID ?? "";
 const CAMPAIGN_CONTRACT = process.env.CAMPAIGN_CONTRACT_ID ?? "";
@@ -122,11 +123,23 @@ export async function startIndexer(): Promise<void> {
 
       for (const event of result.events) {
         await processEvent(event as SorobanRpc.Api.RawEventResponse);
+        indexerEventsTotal.inc();
       }
 
       if (result.events.length > 0) {
         const last = result.events[result.events.length - 1];
         await saveCursor((last as SorobanRpc.Api.RawEventResponse).pagingToken);
+      }
+
+      // Update lag metric: compare latest ledger to current chain tip
+      try {
+        const latestLedger = await rpcServer.getLatestLedger();
+        const cursorLedger = result.events.length > 0
+          ? Number((result.events[result.events.length - 1] as SorobanRpc.Api.RawEventResponse).ledger)
+          : latestLedger.sequence;
+        indexerLagBlocks.set(Math.max(0, latestLedger.sequence - cursorLedger));
+      } catch {
+        // non-critical — skip lag update
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));

@@ -6,6 +6,7 @@ import { rewardRouter } from "./routes/reward.routes";
 import { startIndexer } from "./indexer/indexer";
 import { rpcServer } from "./soroban";
 import { pool } from "./db";
+import { registry, httpRequestsTotal, httpRequestDuration, dbPoolActive, dbPoolIdle, dbPoolWaiting } from "./metrics";
 
 dotenv.config();
 
@@ -13,6 +14,29 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(requestLogger);
+
+// ── Prometheus HTTP instrumentation ──────────────────────────────────────────
+app.use((req, res, next) => {
+  const end = httpRequestDuration.startTimer();
+  res.on("finish", () => {
+    const route = req.route?.path ?? req.path;
+    const labels = { method: req.method, route, status: String(res.statusCode) };
+    httpRequestsTotal.inc(labels);
+    end(labels);
+  });
+  next();
+});
+
+// ── /metrics endpoint for Prometheus scraping ─────────────────────────────────
+app.get("/metrics", async (_req, res) => {
+  // Snapshot DB pool stats
+  dbPoolActive.set(pool.totalCount - pool.idleCount);
+  dbPoolIdle.set(pool.idleCount);
+  dbPoolWaiting.set(pool.waitingCount);
+
+  res.set("Content-Type", registry.contentType);
+  res.end(await registry.metrics());
+});
 
 app.get("/health", async (_req, res) => {
   const startTime = Date.now();
