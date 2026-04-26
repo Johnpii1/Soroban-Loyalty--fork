@@ -1,7 +1,5 @@
 import { Request } from "express";
-
-const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
-const MAINTENANCE_MODE = process.env.MAINTENANCE_MODE === "true";
+import { env } from "./env";
 
 export type AlertLevel = "critical" | "error" | "warn" | "info";
 
@@ -13,7 +11,7 @@ interface AlertPayload {
 }
 
 async function sendSlackAlert(payload: AlertPayload): Promise<void> {
-  if (!SLACK_WEBHOOK_URL || MAINTENANCE_MODE) return;
+  if (!env.SLACK_WEBHOOK_URL || env.MAINTENANCE_MODE) return;
   const { level, message, error, context } = payload;
   const emoji = level === "critical" ? "🚨" : "⚠️";
   const runbook = "https://github.com/Dev-Odun-oss/Soroban-Loyalty/wiki/Runbooks";
@@ -28,7 +26,7 @@ async function sendSlackAlert(payload: AlertPayload): Promise<void> {
     .join("\n");
 
   try {
-    await fetch(SLACK_WEBHOOK_URL, {
+    await fetch(env.SLACK_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),

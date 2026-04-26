@@ -14,7 +14,8 @@ import { EmptyState } from "@/components/EmptyState";
 const PAGE_SIZE = 20;
 
 export default function DashboardPage() {
-  const { publicKey } = useWallet();
+  const { publicKey, refreshBalance } = useWallet();
+  const { t } = useI18n();
   const { health } = useNetworkStatus();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
@@ -30,9 +31,22 @@ export default function DashboardPage() {
 
   const networkDisabled = health.status === 'unreachable';
 
-  useEffect(() => {
-    api.getCampaigns().then((r) => setCampaigns(r.campaigns)).catch(console.error);
-  }, []);
+  const loadCampaigns = useCallback(
+    async (nextOffset: number, replace = false) => {
+      setLoadingMore(true);
+      try {
+        const response = await api.getCampaigns(PAGE_SIZE, nextOffset);
+        setCampaigns((prev) => (replace ? response.campaigns : [...prev, ...response.campaigns]));
+        setOffset(nextOffset + response.campaigns.length);
+        setTotal(response.total);
+      } catch (error) {
+        console.error("Failed to load campaigns", error);
+      } finally {
+        setLoadingMore(false);
+      }
+    },
+    []
+  );
 
   // Initial load
   useEffect(() => {
@@ -75,6 +89,7 @@ export default function DashboardPage() {
       setMessage({ type: "success", text: t('messages.claimSuccess', { id: campaignId.toString() }) });
       const r = await api.getUserRewards(publicKey);
       setRewards(r.rewards);
+      await refreshBalance();
     } catch (err: unknown) {
       setMessage({ type: "error", text: err instanceof Error ? err.message : t('messages.claimFailed') });
     } finally {
@@ -92,6 +107,7 @@ export default function DashboardPage() {
       setMessage({ type: "success", text: t('messages.redeemSuccess', { amount: reward.amount.toString() }) });
       const r = await api.getUserRewards(publicKey);
       setRewards(r.rewards);
+      await refreshBalance();
     } catch (err: unknown) {
       setMessage({ type: "error", text: err instanceof Error ? err.message : t('messages.redeemFailed') });
     } finally {
@@ -149,6 +165,8 @@ export default function DashboardPage() {
           />
         </section>
       )}
+
+      {hasMore && <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />}
     </div>
   );
 }
