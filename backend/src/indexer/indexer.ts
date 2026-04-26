@@ -14,6 +14,8 @@ const REWARDS_CONTRACT = process.env.REWARDS_CONTRACT_ID ?? "";
 const CAMPAIGN_CONTRACT = process.env.CAMPAIGN_CONTRACT_ID ?? "";
 const POLL_INTERVAL_MS = 5_000;
 
+let indexerInterval: ReturnType<typeof setInterval> | null = null;
+
 // Persist cursor so we don't re-process events on restart
 async function getCursor(): Promise<string | undefined> {
   const { rows } = await pool.query<{ value: string }>(
@@ -100,7 +102,7 @@ async function processEvent(event: SorobanRpc.Api.RawEventResponse): Promise<voi
  * Starts the background event indexer.
  * It polls the Soroban RPC for contract events (Campaign creation, Reward claim/redeem)
  * and persists them to the local database.
- * 
+ *
  * @returns A promise that resolves when the indexer has started its initial poll.
  */
 export async function startIndexer(): Promise<void> {
@@ -154,5 +156,17 @@ export async function startIndexer(): Promise<void> {
 
   // Run immediately then on interval
   await poll();
-  setInterval(poll, POLL_INTERVAL_MS);
+  indexerInterval = setInterval(poll, POLL_INTERVAL_MS);
+}
+
+/**
+ * Stops the background indexer polling loop.
+ * Called during graceful shutdown to prevent the indexer from running after the server exits.
+ */
+export function stopIndexer(): void {
+  if (indexerInterval !== null) {
+    clearInterval(indexerInterval);
+    indexerInterval = null;
+    console.log("[indexer] stopped");
+  }
 }
