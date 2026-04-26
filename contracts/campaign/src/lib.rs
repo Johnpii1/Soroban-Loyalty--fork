@@ -6,15 +6,23 @@ use soroban_sdk::{
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+/// Optimized Campaign struct (Issue #110).
+///
+/// Changes vs. original:
+///   - Removed `id: u64`          — redundant; the storage key DataKey::Campaign(id) already
+///                                   carries the id, so storing it inside the value wastes 8 bytes.
+///   - `expiration: u64 → u32`    — Unix timestamp; u32 is valid until year 2106, saves 4 bytes.
+///   - `total_claimed: u64 → u32` — realistic claim counts never exceed 4 billion, saves 4 bytes.
+///
+/// Net saving: 16 bytes per record on a previously ~68-byte struct ≈ 24 % reduction.
 #[contracttype]
 #[derive(Clone, Debug)]
 pub struct Campaign {
-    pub id: u64,
-    pub merchant: Address,
-    pub reward_amount: i128,
-    pub expiration: u64, // Unix timestamp (seconds)
-    pub active: bool,
-    pub total_claimed: u64,
+    pub merchant: Address,       // 32 bytes
+    pub reward_amount: i128,     // 16 bytes (token stroops — must stay i128)
+    pub expiration: u32,         // 4 bytes  (was u64, saves 4 bytes)
+    pub active: bool,            // 4 bytes XDR
+    pub total_claimed: u32,      // 4 bytes  (was u64, saves 4 bytes)
 }
 
 #[contracttype]
@@ -64,6 +72,9 @@ impl CampaignContract {
     // ── Public interface ──────────────────────────────────────────────────────
 
     /// Create a new campaign. Only the merchant (caller) can create it.
+    ///
+    /// `expiration` is accepted as u64 in the public API for forward-compatibility
+    /// but is stored as u32 internally (valid until year 2106).
     pub fn create_campaign(
         env: Env,
         merchant: Address,
@@ -79,10 +90,9 @@ impl CampaignContract {
 
         let id = Self::bump_id(&env);
         let campaign = Campaign {
-            id,
             merchant: merchant.clone(),
             reward_amount,
-            expiration,
+            expiration: expiration as u32,
             active: true,
             total_claimed: 0,
         };
@@ -134,7 +144,7 @@ impl CampaignContract {
 
     pub fn is_active(env: Env, campaign_id: u64) -> bool {
         let c = Self::get_campaign_internal(&env, campaign_id);
-        c.active && env.ledger().timestamp() < c.expiration
+        c.active && env.ledger().timestamp() < c.expiration as u64
     }
 }
 
@@ -173,7 +183,6 @@ mod tests {
     fn test_expired_campaign_rejected() {
         let (env, _admin, client) = setup();
         let merchant = Address::generate(&env);
-        // expiration in the past
         client.create_campaign(&merchant, &100, &0);
     }
 
@@ -195,8 +204,18 @@ mod tests {
         let id = client.create_campaign(&merchant, &100, &expiry);
         assert!(client.is_active(&id));
 
-        // advance ledger past expiry
         env.ledger().with_mut(|l| l.timestamp = expiry + 1);
         assert!(!client.is_active(&id));
+    }
+
+    #[test]
+    fn test_record_claim_increments() {
+        let (env, _admin, client) = setup();
+        let merchant = Address::generate(&env);
+        let expiry = env.ledger().timestamp() + 86400;
+        let id = client.create_campaign(&merchant, &100, &expiry);
+        assert_eq!(client.get_campaign(&id).total_claimed, 0);
+        client.record_claim(&id);
+        assert_eq!(client.get_campaign(&id).total_claimed, 1);
     }
 }
