@@ -1,7 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, token, Address, Env, String, Symbol,
+    contract, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol,
 };
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
@@ -59,17 +59,15 @@ impl TokenContract {
 
     // ── Balance helpers ───────────────────────────────────────────────────────
 
-    fn balance_of(env: &Env, addr: &Address) -> i128 {
-        env.storage()
-            .persistent()
-            .get(&DataKey::Balance(addr.clone()))
-            .unwrap_or(0)
+    // Read balance for a pre-built key, avoiding a second key construction.
+    #[inline(always)]
+    fn read_balance(env: &Env, key: &DataKey) -> i128 {
+        env.storage().persistent().get(key).unwrap_or(0)
     }
 
-    fn set_balance(env: &Env, addr: &Address, amount: i128) {
-        env.storage()
-            .persistent()
-            .set(&DataKey::Balance(addr.clone()), &amount);
+    #[inline(always)]
+    fn write_balance(env: &Env, key: &DataKey, amount: i128) {
+        env.storage().persistent().set(key, &amount);
     }
 
     fn total_supply(env: &Env) -> i128 {
@@ -91,10 +89,13 @@ impl TokenContract {
         Self::require_admin(&env);
         assert!(amount > 0, "amount must be positive");
 
-        let new_balance = Self::balance_of(&env, &to)
+        // Build key once; reuse for both read and write — avoids a second
+        // Address clone that the old balance_of/set_balance pair incurred.
+        let key = DataKey::Balance(to.clone());
+        let new_bal = Self::read_balance(&env, &key)
             .checked_add(amount)
             .expect("overflow");
-        Self::set_balance(&env, &to, new_balance);
+        Self::write_balance(&env, &key, new_bal);
 
         let new_supply = Self::total_supply(&env)
             .checked_add(amount)
@@ -109,11 +110,15 @@ impl TokenContract {
         from.require_auth();
         assert!(amount > 0, "amount must be positive");
 
-        let bal = Self::balance_of(&env, &from);
+        let key = DataKey::Balance(from.clone());
+        let bal = Self::read_balance(&env, &key);
         assert!(bal >= amount, "insufficient balance");
+        Self::write_balance(&env, &key, bal - amount);
 
-        Self::set_balance(&env, &from, bal - amount);
-        let new_supply = Self::total_supply(&env) - amount;
+        // Use checked_sub to guard against total_supply underflow.
+        let new_supply = Self::total_supply(&env)
+            .checked_sub(amount)
+            .expect("underflow");
         Self::set_total_supply(&env, new_supply);
 
         env.events()
@@ -124,21 +129,29 @@ impl TokenContract {
         from.require_auth();
         assert!(amount > 0, "amount must be positive");
 
-        let from_bal = Self::balance_of(&env, &from);
-        assert!(from_bal >= amount, "insufficient balance");
+        // Build both keys up front so each address is cloned exactly once.
+        let from_key = DataKey::Balance(from.clone());
+        let to_key = DataKey::Balance(to.clone());
 
-        Self::set_balance(&env, &from, from_bal - amount);
-        let to_bal = Self::balance_of(&env, &to)
-            .checked_add(amount)
-            .expect("overflow");
-        Self::set_balance(&env, &to, to_bal);
+        // Read both balances before writing either — keeps reads and writes
+        // clearly separated and avoids any accidental double-read.
+        let from_bal = Self::read_balance(&env, &from_key);
+        assert!(from_bal >= amount, "insufficient balance");
+        let to_bal = Self::read_balance(&env, &to_key);
+
+        Self::write_balance(&env, &from_key, from_bal - amount);
+        Self::write_balance(
+            &env,
+            &to_key,
+            to_bal.checked_add(amount).expect("overflow"),
+        );
 
         env.events()
             .publish((TRANSFER, symbol_short!("from"), from), (to, amount));
     }
 
     pub fn balance(env: Env, addr: Address) -> i128 {
-        Self::balance_of(&env, &addr)
+        Self::read_balance(&env, &DataKey::Balance(addr))
     }
 
     pub fn total_supply_view(env: Env) -> i128 {
@@ -161,7 +174,6 @@ impl TokenContract {
         env.storage().instance().get(&DataKey::Decimals).unwrap()
     }
 
-    /// Transfer admin to a new address (two-step would be ideal in prod).
     pub fn set_admin(env: Env, new_admin: Address) {
         Self::require_admin(&env);
         env.storage().instance().set(&DataKey::Admin, &new_admin);
@@ -237,5 +249,75 @@ mod tests {
         let bob = Address::generate(&env);
         client.mint(&alice, &50);
         client.transfer(&alice, &bob, &100);
+    }
+
+    // ── Benchmarks ────────────────────────────────────────────────────────────
+    // Measure CPU instructions and memory bytes via the Soroban budget tracker.
+    // Run with:  cargo test -p soroban-loyalty-token bench -- --nocapture
+
+    #[test]
+    fn bench_transfer() {
+        let (env, _admin, client) = setup();
+        let alice = Address::generate(&env);
+        let bob = Address::generate(&env);
+        client.mint(&alice, &1_000_000);
+
+        // First transfer: bob has no existing balance (cold recipient).
+        env.budget().reset_default();
+        client.transfer(&alice, &bob, &100);
+        let cpu1 = env.budget().cpu_instruction_cost();
+        let mem1 = env.budget().memory_bytes_cost();
+
+        // Subsequent transfer: both accounts already have balances (warm path).
+        env.budget().reset_default();
+        client.transfer(&alice, &bob, &100);
+        let cpu2 = env.budget().cpu_instruction_cost();
+        let mem2 = env.budget().memory_bytes_cost();
+
+        soroban_sdk::log!(
+            &env,
+            "bench transfer cold  — cpu: {}, mem: {}",
+            cpu1,
+            mem1
+        );
+        soroban_sdk::log!(
+            &env,
+            "bench transfer warm  — cpu: {}, mem: {}",
+            cpu2,
+            mem2
+        );
+    }
+
+    #[test]
+    fn bench_mint() {
+        let (env, _admin, client) = setup();
+        let user = Address::generate(&env);
+
+        env.budget().reset_default();
+        client.mint(&user, &1000);
+        let cpu1 = env.budget().cpu_instruction_cost();
+        let mem1 = env.budget().memory_bytes_cost();
+
+        env.budget().reset_default();
+        client.mint(&user, &1000);
+        let cpu2 = env.budget().cpu_instruction_cost();
+        let mem2 = env.budget().memory_bytes_cost();
+
+        soroban_sdk::log!(&env, "bench mint first      — cpu: {}, mem: {}", cpu1, mem1);
+        soroban_sdk::log!(&env, "bench mint subsequent — cpu: {}, mem: {}", cpu2, mem2);
+    }
+
+    #[test]
+    fn bench_burn() {
+        let (env, _admin, client) = setup();
+        let user = Address::generate(&env);
+        client.mint(&user, &10_000);
+
+        env.budget().reset_default();
+        client.burn(&user, &100);
+        let cpu = env.budget().cpu_instruction_cost();
+        let mem = env.budget().memory_bytes_cost();
+
+        soroban_sdk::log!(&env, "bench burn            — cpu: {}, mem: {}", cpu, mem);
     }
 }
