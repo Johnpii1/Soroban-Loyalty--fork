@@ -35,6 +35,10 @@ export let pool: Pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+export let pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
 pool.on("error", (err) => {
   logger.critical("DB connection error", err);
 });

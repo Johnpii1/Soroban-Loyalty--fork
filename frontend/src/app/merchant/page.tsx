@@ -3,19 +3,14 @@
 import { useEffect, useState } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { api, Campaign } from "@/lib/api";
-import { createCampaign } from "@/lib/soroban";
 import { CampaignTable } from "@/components/CampaignTable";
+import { CreateCampaignForm } from "@/components/CreateCampaignForm";
 
 export default function MerchantPage() {
   const { publicKey } = useWallet();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [rewardAmount, setRewardAmount] = useState("");
-  const [expirationDays, setExpirationDays] = useState("30");
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const loadCampaigns = async () => {
-    // Fetch all merchant campaigns (up to 100) for the merchant portal
     const r = await api.getCampaigns(100, 0);
     if (publicKey) {
       setCampaigns(r.campaigns.filter((c) => c.merchant === publicKey));
@@ -26,30 +21,6 @@ export default function MerchantPage() {
 
   useEffect(() => { loadCampaigns().catch(console.error); }, [publicKey]);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!publicKey) return setMessage({ type: "error", text: "Connect wallet first" });
-    const amount = parseInt(rewardAmount, 10);
-    if (isNaN(amount) || amount <= 0) return setMessage({ type: "error", text: "Invalid reward amount" });
-    const days = parseInt(expirationDays, 10);
-    if (isNaN(days) || days <= 0) return setMessage({ type: "error", text: "Invalid expiration" });
-
-    const expiration = Math.floor(Date.now() / 1000) + days * 86400;
-    setSubmitting(true);
-    setMessage(null);
-    try {
-      await createCampaign(publicKey, BigInt(amount), expiration);
-      setMessage({ type: "success", text: "Campaign created successfully!" });
-      setRewardAmount("");
-      await loadCampaigns();
-    } catch (err: unknown) {
-      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to create campaign" });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Deactivate is a local optimistic update (no backend endpoint yet)
   const handleDeactivate = async (id: number) => {
     setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, active: false } : c)));
   };
@@ -58,41 +29,15 @@ export default function MerchantPage() {
     <div>
       <h1 className="page-title">Merchant Portal</h1>
 
-      {message && <div className={`alert alert-${message.type}`}>{message.text}</div>}
-
       {!publicKey && (
         <div className="alert alert-error">Connect your Freighter wallet to create campaigns.</div>
       )}
 
-      <section style={{ maxWidth: 480, marginBottom: 48 }}>
+      <section style={{ marginBottom: 48 }}>
         <h2 className="section-title">Create Campaign</h2>
-        <form onSubmit={handleCreate}>
-          <div className="form-group">
-            <label>Reward Amount (LYT) <HelpIcon faqId="what-is-lyt" label="What is LYT?" /></label>
-            <input
-              type="number"
-              min="1"
-              value={rewardAmount}
-              onChange={(e) => setRewardAmount(e.target.value)}
-              placeholder="e.g. 100"
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Duration (days)</label>
-            <input
-              type="number"
-              min="1"
-              value={expirationDays}
-              onChange={(e) => setExpirationDays(e.target.value)}
-              placeholder="30"
-              required
-            />
-          </div>
-          <button type="submit" disabled={submitting || !publicKey} className="btn btn-primary">
-            {submitting ? "Creating…" : "Create Campaign"}
-          </button>
-        </form>
+        {publicKey ? (
+          <CreateCampaignForm publicKey={publicKey} onSuccess={loadCampaigns} />
+        ) : null}
       </section>
 
       <section>

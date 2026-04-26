@@ -36,39 +36,48 @@ async function sendSlackAlert(payload: AlertPayload): Promise<void> {
   }
 }
 
+function withCorrelation(obj: Record<string, unknown>): Record<string, unknown> {
+  const id = getCorrelationId();
+  return id ? { correlationId: id, ...obj } : obj;
+}
+
 export const logger = {
   info(message: string, context?: Record<string, unknown>) {
-    console.log(JSON.stringify({ level: "info", message, ...context, ts: new Date().toISOString() }));
+    console.log(JSON.stringify(withCorrelation({ level: "info", message, ...context, ts: new Date().toISOString() })));
   },
 
   warn(message: string, context?: Record<string, unknown>) {
-    console.warn(JSON.stringify({ level: "warn", message, ...context, ts: new Date().toISOString() }));
+    console.warn(JSON.stringify(withCorrelation({ level: "warn", message, ...context, ts: new Date().toISOString() })));
   },
 
   error(message: string, error?: Error, context?: Record<string, unknown>) {
     console.error(
-      JSON.stringify({
-        level: "error",
-        message,
-        error: error?.message,
-        stack: error?.stack,
-        ...context,
-        ts: new Date().toISOString(),
-      })
+      JSON.stringify(
+        withCorrelation({
+          level: "error",
+          message,
+          error: error?.message,
+          stack: error?.stack,
+          ...context,
+          ts: new Date().toISOString(),
+        })
+      )
     );
     sendSlackAlert({ level: "error", message, error, context });
   },
 
   critical(message: string, error?: Error, context?: Record<string, unknown>) {
     console.error(
-      JSON.stringify({
-        level: "critical",
-        message,
-        error: error?.message,
-        stack: error?.stack,
-        ...context,
-        ts: new Date().toISOString(),
-      })
+      JSON.stringify(
+        withCorrelation({
+          level: "critical",
+          message,
+          error: error?.message,
+          stack: error?.stack,
+          ...context,
+          ts: new Date().toISOString(),
+        })
+      )
     );
     sendSlackAlert({ level: "critical", message, error, context });
   },
