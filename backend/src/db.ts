@@ -17,8 +17,10 @@ interface DbSecret {
   dbname: string;
 }
 
+import { env } from "./env";
+
 const secretsClient = new SecretsManagerClient({
-  region: process.env.AWS_REGION ?? "us-east-1",
+  region: env.AWS_REGION,
 });
 
 pool.on("error", (err) => {

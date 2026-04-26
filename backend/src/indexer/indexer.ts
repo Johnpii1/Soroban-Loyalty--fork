@@ -9,9 +9,10 @@ import { upsertReward, recordTransaction } from "../services/reward.service";
 import { pool } from "../db";
 import { logger } from "../logger";
 import { indexerLagBlocks, indexerEventsTotal } from "../metrics";
+import { env } from "../env";
 
-const REWARDS_CONTRACT = process.env.REWARDS_CONTRACT_ID ?? "";
-const CAMPAIGN_CONTRACT = process.env.CAMPAIGN_CONTRACT_ID ?? "";
+const REWARDS_CONTRACT = env.REWARDS_CONTRACT_ID;
+const CAMPAIGN_CONTRACT = env.CAMPAIGN_CONTRACT_ID;
 const POLL_INTERVAL_MS = 5_000;
 
 // Persist cursor so we don't re-process events on restart
@@ -73,7 +74,7 @@ async function processEvent(event: SorobanRpc.Api.RawEventResponse): Promise<voi
       tx_hash: event.txHash,
     });
     await recordTransaction(event.txHash, "campaign_created", merchant, id, null, event.ledger);
-    console.log(`[indexer] CampaignCreated id=${id} merchant=${merchant}`);
+    logger.info(`[indexer] CampaignCreated id=${id} merchant=${merchant}`);
   }
 
   if (event.contractId === REWARDS_CONTRACT && eventName === "RWD_CLM") {
@@ -84,7 +85,7 @@ async function processEvent(event: SorobanRpc.Api.RawEventResponse): Promise<voi
     const amount = decodeI128(valueVec[1]);
     await upsertReward({ user_address: user, campaign_id: campaignId, amount, redeemed: false, redeemed_amount: 0 });
     await recordTransaction(event.txHash, "claim", user, campaignId, amount, event.ledger);
-    console.log(`[indexer] RewardClaimed user=${user} campaign=${campaignId} amount=${amount}`);
+    logger.info(`[indexer] RewardClaimed user=${user} campaign=${campaignId} amount=${amount}`);
   }
 
   if (event.contractId === REWARDS_CONTRACT && eventName === "RWD_RDM") {
@@ -92,7 +93,7 @@ async function processEvent(event: SorobanRpc.Api.RawEventResponse): Promise<voi
     const user = decodeAddress(topics[2]);
     const amount = decodeI128(xdr.ScVal.fromXDR(event.value, "base64"));
     await recordTransaction(event.txHash, "redeem", user, null, amount, event.ledger);
-    console.log(`[indexer] RewardRedeemed user=${user} amount=${amount}`);
+    logger.info(`[indexer] RewardRedeemed user=${user} amount=${amount}`);
   }
 }
 
@@ -105,7 +106,7 @@ async function processEvent(event: SorobanRpc.Api.RawEventResponse): Promise<voi
  */
 export async function startIndexer(): Promise<void> {
   await ensureIndexerTable();
-  console.log("[indexer] started");
+  logger.info("[indexer] started");
 
   const poll = async () => {
     try {

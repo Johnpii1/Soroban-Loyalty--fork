@@ -9,11 +9,18 @@ import { startIndexer } from "./indexer/indexer";
 import { rpcServer } from "./soroban";
 import { pool } from "./db";
 import { registry, httpRequestsTotal, httpRequestDuration, dbPoolActive, dbPoolIdle, dbPoolWaiting } from "./metrics";
+import { logger, requestLogger, errorAlertMiddleware } from "./logger";
 
-// Load .env first (no-op in production where env vars are injected),
-// then fetch secrets from AWS Secrets Manager before any other init.
+// ── Startup sequence ──────────────────────────────────────────────────────────
+// 1. Load .env (no-op in production where vars are injected)
+// 2. Pull secrets from AWS Secrets Manager (populates process.env)
+// 3. Validate ALL env vars via Zod — exits with a clear error if anything is
+//    missing or malformed. Must happen before any service is initialised.
 dotenv.config();
 await loadSecrets();
+
+// Dynamic import so env validation runs after secrets are loaded into process.env
+const { env } = await import("./env");
 
 const app = express();
 app.use(cors());
@@ -34,7 +41,6 @@ app.use((req, res, next) => {
 
 // ── /metrics endpoint for Prometheus scraping ─────────────────────────────────
 app.get("/metrics", async (_req, res) => {
-  // Snapshot DB pool stats
   dbPoolActive.set(pool.totalCount - pool.idleCount);
   dbPoolIdle.set(pool.idleCount);
   dbPoolWaiting.set(pool.waitingCount);
@@ -44,65 +50,60 @@ app.get("/metrics", async (_req, res) => {
 });
 
 app.get("/health", async (_req, res) => {
-  const startTime = Date.now();
   const checks: any = {
     stellar: { reachable: false, latency: 0 },
     database: { connected: false, responseTime: 0 },
-    indexer: { running: true }
+    indexer: { running: true },
   };
 
-  // Check Stellar network
   try {
     const stellarStart = Date.now();
     await rpcServer.getHealth();
     checks.stellar.reachable = true;
     checks.stellar.latency = Date.now() - stellarStart;
-  } catch (err) {
+  } catch {
     checks.stellar.reachable = false;
   }
 
-  // Check database
   try {
     const dbStart = Date.now();
-    await pool.query('SELECT 1');
+    await pool.query("SELECT 1");
     checks.database.connected = true;
     checks.database.responseTime = Date.now() - dbStart;
-  } catch (err) {
+  } catch {
     checks.database.connected = false;
   }
 
   const allHealthy = checks.stellar.reachable && checks.database.connected;
-  const status = allHealthy ? 'healthy' : (checks.stellar.reachable || checks.database.connected) ? 'degraded' : 'unhealthy';
+  const status = allHealthy
+    ? "healthy"
+    : checks.stellar.reachable || checks.database.connected
+    ? "degraded"
+    : "unhealthy";
 
-  res.json({
-    status,
-    checks,
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
+  res.json({ status, checks, timestamp: new Date().toISOString(), uptime: process.uptime() });
 });
 
 app.use("/campaigns", campaignRouter);
 app.use("/", rewardRouter);
 app.use("/analytics", analyticsRouter);
 
-// Global error handler — logs + alerts on unhandled errors
 app.use(errorAlertMiddleware);
 
-// Catch unhandled promise rejections and exceptions
 process.on("unhandledRejection", (reason) => {
-  logger.critical("Unhandled promise rejection", reason instanceof Error ? reason : new Error(String(reason)));
+  logger.critical(
+    "Unhandled promise rejection",
+    reason instanceof Error ? reason : new Error(String(reason))
+  );
 });
 process.on("uncaughtException", (err) => {
   logger.critical("Uncaught exception", err);
   process.exit(1);
 });
 
-const PORT = process.env.PORT ?? 3001;
-
-app.listen(PORT, async () => {
-  logger.info(`Server listening on port ${PORT}`);
-  if (process.env.ENABLE_INDEXER !== "false") {
+app.listen(env.PORT, async () => {
+  logger.info(`Server listening on port ${env.PORT}`);
+  if (env.ENABLE_INDEXER) {
     await startIndexer();
   }
 });
