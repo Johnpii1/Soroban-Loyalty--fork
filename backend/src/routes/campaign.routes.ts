@@ -1,6 +1,12 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import { getCampaigns, getCampaignById, reorderCampaigns } from "../services/campaign.service";
+import {
+  getCampaigns,
+  getCampaignById,
+  reorderCampaigns,
+  softDeleteCampaign,
+  restoreCampaign,
+} from "../services/campaign.service";
 
 export const campaignRouter = Router();
 
@@ -52,5 +58,37 @@ campaignRouter.patch("/reorder", async (req: Request, res: Response) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: "Failed to reorder campaigns" });
+  }
+});
+
+/**
+ * DELETE /campaigns/:id
+ * Soft-deletes a campaign by setting deleted_at.
+ */
+campaignRouter.delete("/:id", async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  try {
+    const deleted = await softDeleteCampaign(id);
+    if (!deleted) return res.status(404).json({ error: "Not found" });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete campaign" });
+  }
+});
+
+/**
+ * POST /campaigns/:id/restore
+ * Restores a soft-deleted campaign.
+ */
+campaignRouter.post("/:id/restore", async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  try {
+    const restored = await restoreCampaign(id);
+    if (!restored) return res.status(404).json({ error: "Not found or not deleted" });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to restore campaign" });
   }
 });
