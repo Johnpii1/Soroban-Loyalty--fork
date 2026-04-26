@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { api, AnalyticsData } from "@/lib/api";
 
-// Dynamically import Recharts components (client-only)
+import { StatCardsSkeleton, BarChartSkeleton, LineChartSkeleton } from "@/components/ChartSkeleton";
 const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), { ssr: false });
 const Bar = dynamic(() => import("recharts").then((m) => m.Bar), { ssr: false });
 const LineChart = dynamic(() => import("recharts").then((m) => m.LineChart), { ssr: false });
@@ -56,9 +56,16 @@ export default function AnalyticsPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      {loading ? (
-        <p className="empty-state">Loading analytics…</p>
-      ) : data ? (
+      <div style={{ opacity: loading ? 1 : 0, transition: "opacity 0.2s", position: loading ? "static" : "absolute", pointerEvents: "none", display: loading ? "block" : "none" }}
+           aria-hidden={!loading}>
+        <StatCardsSkeleton />
+        <h2 className="section-title">Claims per Campaign</h2>
+        <BarChartSkeleton />
+        <h2 className="section-title" style={{ marginTop: 40 }}>Claims Over Time</h2>
+        <LineChartSkeleton />
+      </div>
+
+      {!loading && data ? (
         <>
           {/* Stat cards */}
           <div className="stat-grid">
