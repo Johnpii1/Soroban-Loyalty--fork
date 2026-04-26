@@ -9,6 +9,7 @@ import { startIndexer } from "./indexer/indexer";
 import { rpcServer } from "./soroban";
 import { pool } from "./db";
 import { registry, httpRequestsTotal, httpRequestDuration, dbPoolActive, dbPoolIdle, dbPoolWaiting } from "./metrics";
+import { correlationMiddleware } from "./correlation";
 
 // Load .env first (no-op in production where env vars are injected),
 // then fetch secrets from AWS Secrets Manager before any other init.
@@ -17,6 +18,7 @@ await loadSecrets();
 
 const app = express();
 app.use(cors());
+app.use(correlationMiddleware);
 app.use(express.json());
 app.use(requestLogger);
 
