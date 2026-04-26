@@ -1,7 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, Address, Env, Symbol,
+    contract, contractimpl, contracttype, symbol_short, Address, Bytes, Env, Symbol,
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -15,6 +15,10 @@ pub struct Campaign {
     pub expiration: u64, // Unix timestamp (seconds)
     pub active: bool,
     pub total_claimed: u64,
+    /// Campaign name — max 64 bytes UTF-8
+    pub name: Bytes,
+    /// Campaign description — max 256 bytes UTF-8
+    pub description: Bytes,
 }
 
 #[contracttype]
@@ -64,11 +68,14 @@ impl CampaignContract {
     // ── Public interface ──────────────────────────────────────────────────────
 
     /// Create a new campaign. Only the merchant (caller) can create it.
+    /// `name` max 64 bytes, `description` max 256 bytes.
     pub fn create_campaign(
         env: Env,
         merchant: Address,
         reward_amount: i128,
         expiration: u64,
+        name: Bytes,
+        description: Bytes,
     ) -> u64 {
         merchant.require_auth();
         assert!(reward_amount > 0, "reward_amount must be positive");
@@ -76,6 +83,8 @@ impl CampaignContract {
             expiration > env.ledger().timestamp(),
             "expiration must be in the future"
         );
+        assert!(name.len() <= 64, "name exceeds 64 bytes");
+        assert!(description.len() <= 256, "description exceeds 256 bytes");
 
         let id = Self::bump_id(&env);
         let campaign = Campaign {
@@ -85,13 +94,17 @@ impl CampaignContract {
             expiration,
             active: true,
             total_claimed: 0,
+            name: name.clone(),
+            description: description.clone(),
         };
         env.storage()
             .persistent()
             .set(&DataKey::Campaign(id), &campaign);
 
-        env.events()
-            .publish((CAMPAIGN_CREATED, symbol_short!("id"), id), merchant);
+        env.events().publish(
+            (CAMPAIGN_CREATED, symbol_short!("id"), id),
+            (merchant, name, description),
+        );
 
         id
     }
@@ -125,6 +138,12 @@ impl CampaignContract {
         Self::get_campaign_internal(&env, campaign_id)
     }
 
+    /// View function returning only the on-chain metadata fields.
+    pub fn get_campaign_metadata(env: Env, campaign_id: u64) -> (Bytes, Bytes) {
+        let c = Self::get_campaign_internal(&env, campaign_id);
+        (c.name, c.description)
+    }
+
     fn get_campaign_internal(env: &Env, campaign_id: u64) -> Campaign {
         env.storage()
             .persistent()
@@ -143,7 +162,10 @@ impl CampaignContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::{Address as _, Ledger}, Env};
+    use soroban_sdk::{
+        testutils::{Address as _, Ledger},
+        Bytes, Env,
+    };
 
     fn setup() -> (Env, Address, CampaignContractClient<'static>) {
         let env = Env::default();
@@ -155,17 +177,58 @@ mod tests {
         (env, admin, client)
     }
 
+    fn name(env: &Env) -> Bytes {
+        Bytes::from_slice(env, b"Summer Sale")
+    }
+
+    fn desc(env: &Env) -> Bytes {
+        Bytes::from_slice(env, b"Earn LYT on every purchase this summer")
+    }
+
     #[test]
     fn test_create_campaign() {
         let (env, _admin, client) = setup();
         let merchant = Address::generate(&env);
         let expiry = env.ledger().timestamp() + 86400;
-        let id = client.create_campaign(&merchant, &100, &expiry);
+        let id = client.create_campaign(&merchant, &100, &expiry, &name(&env), &desc(&env));
         assert_eq!(id, 1);
         let c = client.get_campaign(&id);
         assert_eq!(c.merchant, merchant);
         assert_eq!(c.reward_amount, 100);
         assert!(c.active);
+        assert_eq!(c.name, name(&env));
+        assert_eq!(c.description, desc(&env));
+    }
+
+    #[test]
+    fn test_get_campaign_metadata() {
+        let (env, _admin, client) = setup();
+        let merchant = Address::generate(&env);
+        let expiry = env.ledger().timestamp() + 86400;
+        let id = client.create_campaign(&merchant, &100, &expiry, &name(&env), &desc(&env));
+        let (n, d) = client.get_campaign_metadata(&id);
+        assert_eq!(n, name(&env));
+        assert_eq!(d, desc(&env));
+    }
+
+    #[test]
+    #[should_panic(expected = "name exceeds 64 bytes")]
+    fn test_name_too_long() {
+        let (env, _admin, client) = setup();
+        let merchant = Address::generate(&env);
+        let expiry = env.ledger().timestamp() + 86400;
+        let long_name = Bytes::from_slice(env, &[b'x'; 65]);
+        client.create_campaign(&merchant, &100, &expiry, &long_name, &desc(&env));
+    }
+
+    #[test]
+    #[should_panic(expected = "description exceeds 256 bytes")]
+    fn test_description_too_long() {
+        let (env, _admin, client) = setup();
+        let merchant = Address::generate(&env);
+        let expiry = env.ledger().timestamp() + 86400;
+        let long_desc = Bytes::from_slice(env, &[b'd'; 257]);
+        client.create_campaign(&merchant, &100, &expiry, &name(&env), &long_desc);
     }
 
     #[test]
@@ -173,8 +236,7 @@ mod tests {
     fn test_expired_campaign_rejected() {
         let (env, _admin, client) = setup();
         let merchant = Address::generate(&env);
-        // expiration in the past
-        client.create_campaign(&merchant, &100, &0);
+        client.create_campaign(&merchant, &100, &0, &name(&env), &desc(&env));
     }
 
     #[test]
@@ -182,7 +244,7 @@ mod tests {
         let (env, _admin, client) = setup();
         let merchant = Address::generate(&env);
         let expiry = env.ledger().timestamp() + 86400;
-        let id = client.create_campaign(&merchant, &100, &expiry);
+        let id = client.create_campaign(&merchant, &100, &expiry, &name(&env), &desc(&env));
         client.set_active(&id, &false);
         assert!(!client.get_campaign(&id).active);
     }
@@ -192,10 +254,9 @@ mod tests {
         let (env, _admin, client) = setup();
         let merchant = Address::generate(&env);
         let expiry = env.ledger().timestamp() + 10;
-        let id = client.create_campaign(&merchant, &100, &expiry);
+        let id = client.create_campaign(&merchant, &100, &expiry, &name(&env), &desc(&env));
         assert!(client.is_active(&id));
 
-        // advance ledger past expiry
         env.ledger().with_mut(|l| l.timestamp = expiry + 1);
         assert!(!client.is_active(&id));
     }

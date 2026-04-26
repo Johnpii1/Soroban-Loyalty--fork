@@ -202,14 +202,20 @@ mod tests {
         TestSetup { env, token, campaign, rewards }
     }
 
+    fn make_campaign(t: &TestSetup, merchant: &Address, reward: i128) -> u64 {
+        let expiry = t.env.ledger().timestamp() + 86400;
+        let name = soroban_sdk::Bytes::from_slice(&t.env, b"Test Campaign");
+        let desc = soroban_sdk::Bytes::from_slice(&t.env, b"Test description");
+        t.campaign.create_campaign(merchant, &reward, &expiry, &name, &desc)
+    }
+
     #[test]
     fn test_claim_mints_tokens() {
         let t = setup();
         let merchant = Address::generate(&t.env);
         let user = Address::generate(&t.env);
-        let expiry = t.env.ledger().timestamp() + 86400;
 
-        let cid = t.campaign.create_campaign(&merchant, &500, &expiry);
+        let cid = make_campaign(&t, &merchant, 500);
         t.rewards.claim_reward(&user, &cid);
 
         assert_eq!(t.token.balance(&user), 500);
@@ -222,9 +228,8 @@ mod tests {
         let t = setup();
         let merchant = Address::generate(&t.env);
         let user = Address::generate(&t.env);
-        let expiry = t.env.ledger().timestamp() + 86400;
 
-        let cid = t.campaign.create_campaign(&merchant, &500, &expiry);
+        let cid = make_campaign(&t, &merchant, 500);
         t.rewards.claim_reward(&user, &cid);
         t.rewards.claim_reward(&user, &cid);
     }
@@ -235,9 +240,8 @@ mod tests {
         let t = setup();
         let merchant = Address::generate(&t.env);
         let user = Address::generate(&t.env);
-        let expiry = t.env.ledger().timestamp() + 86400;
 
-        let cid = t.campaign.create_campaign(&merchant, &500, &expiry);
+        let cid = make_campaign(&t, &merchant, 500);
         t.campaign.set_active(&cid, &false);
         t.rewards.claim_reward(&user, &cid);
     }
@@ -249,8 +253,9 @@ mod tests {
         let merchant = Address::generate(&t.env);
         let user = Address::generate(&t.env);
         let expiry = t.env.ledger().timestamp() + 10;
-
-        let cid = t.campaign.create_campaign(&merchant, &500, &expiry);
+        let name = soroban_sdk::Bytes::from_slice(&t.env, b"Test Campaign");
+        let desc = soroban_sdk::Bytes::from_slice(&t.env, b"Test description");
+        let cid = t.campaign.create_campaign(&merchant, &500, &expiry, &name, &desc);
         t.env.ledger().with_mut(|l| l.timestamp = expiry + 1);
         t.rewards.claim_reward(&user, &cid);
     }
@@ -260,9 +265,8 @@ mod tests {
         let t = setup();
         let merchant = Address::generate(&t.env);
         let user = Address::generate(&t.env);
-        let expiry = t.env.ledger().timestamp() + 86400;
 
-        let cid = t.campaign.create_campaign(&merchant, &500, &expiry);
+        let cid = make_campaign(&t, &merchant, 500);
         t.rewards.claim_reward(&user, &cid);
         t.rewards.redeem_reward(&user, &200);
 
@@ -276,9 +280,8 @@ mod tests {
         let merchant = Address::generate(&t.env);
         let user1 = Address::generate(&t.env);
         let user2 = Address::generate(&t.env);
-        let expiry = t.env.ledger().timestamp() + 86400;
 
-        let cid = t.campaign.create_campaign(&merchant, &100, &expiry);
+        let cid = make_campaign(&t, &merchant, 100);
         t.rewards.claim_reward(&user1, &cid);
         t.rewards.claim_reward(&user2, &cid);
 
