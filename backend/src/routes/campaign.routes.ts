@@ -11,8 +11,45 @@ import {
 export const campaignRouter = Router();
 
 /**
- * GET /campaigns
- * Returns a list of all campaigns stored in the database.
+ * @openapi
+ * /campaigns:
+ *   get:
+ *     summary: List all campaigns
+ *     description: Returns a paginated list of all campaigns stored in the database.
+ *     tags: [Campaigns]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Maximum number of campaigns to return.
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: Number of campaigns to skip.
+ *     responses:
+ *       200:
+ *         description: A list of campaigns.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 campaigns:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Campaign'
+ *                 total:
+ *                   type: integer
+ *       500:
+ *         description: Server error.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 campaignRouter.get("/", async (req: Request, res: Response) => {
   try {
@@ -26,8 +63,35 @@ campaignRouter.get("/", async (req: Request, res: Response) => {
 });
 
 /**
- * GET /campaigns/:id
- * Returns a single campaign by its ID.
+ * @openapi
+ * /campaigns/{id}:
+ *   get:
+ *     summary: Get campaign by ID
+ *     description: Returns a single campaign by its unique identifier.
+ *     tags: [Campaigns]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The campaign ID.
+ *     responses:
+ *       200:
+ *         description: Campaign details.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 campaign:
+ *                   $ref: '#/components/schemas/Campaign'
+ *       400:
+ *         description: Invalid ID.
+ *       404:
+ *         description: Campaign not found.
+ *       500:
+ *         description: Server error.
  */
 campaignRouter.get("/:id", async (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
@@ -46,9 +110,39 @@ const ReorderSchema = z.object({
 });
 
 /**
- * PATCH /campaigns/reorder
- * Persists the display order of campaigns for a merchant.
- * Body: { order: number[] }  — array of campaign IDs in desired order
+ * @openapi
+ * /campaigns/reorder:
+ *   patch:
+ *     summary: Reorder campaigns
+ *     description: Persists the display order of campaigns for a merchant.
+ *     tags: [Campaigns]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - order
+ *             properties:
+ *               order:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *                 description: Array of campaign IDs in the desired display order.
+ *     responses:
+ *       200:
+ *         description: Reorder successful.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ok: { type: boolean }
+ *       400:
+ *         description: Invalid request body.
+ *       500:
+ *         description: Server error.
  */
 campaignRouter.patch("/reorder", async (req: Request, res: Response) => {
   const parsed = ReorderSchema.safeParse(req.body);

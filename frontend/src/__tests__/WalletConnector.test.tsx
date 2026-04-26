@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "./test-utils";
 import { WalletConnector } from "@/components/WalletConnector";
 import { WalletContext } from "@/context/WalletContext";
 import React from "react";
@@ -6,8 +6,12 @@ import React from "react";
 const makeCtx = (overrides = {}) => ({
   publicKey: null,
   connecting: false,
+  mounted: true,
+  lytBalance: 0,
+  balanceLoading: false,
   connect: jest.fn(),
   disconnect: jest.fn(),
+  refreshBalance: jest.fn(),
   ...overrides,
 });
 
@@ -17,6 +21,16 @@ const wrap = (ctx: ReturnType<typeof makeCtx>) =>
       <WalletConnector />
     </WalletContext.Provider>
   );
+
+beforeEach(() => {
+  // Simulate Freighter being installed so connect() is called directly
+  Object.defineProperty(window, "freighter", { value: {}, configurable: true });
+});
+
+afterEach(() => {
+  // @ts-expect-error cleanup
+  delete window.freighter;
+});
 
 test("shows Connect button when disconnected", () => {
   wrap(makeCtx());
@@ -29,16 +43,19 @@ test("shows connecting state", () => {
   expect(screen.getByRole("button")).toBeDisabled();
 });
 
-test("calls connect on click", () => {
+test("calls connect on click", async () => {
   const ctx = makeCtx();
   wrap(ctx);
   fireEvent.click(screen.getByRole("button"));
+  // handleConnect is async; wait a tick
+  await Promise.resolve();
   expect(ctx.connect).toHaveBeenCalledTimes(1);
 });
 
 test("shows truncated key and disconnect when connected", () => {
-  wrap(makeCtx({ publicKey: "GABCDEFGHIJKLMNOP" }));
+  wrap(makeCtx({ publicKey: "GABCDEFGHIJKLMNOP", lytBalance: 1250 }));
   expect(screen.getByText(/GABCDE/)).toBeInTheDocument();
+  expect(screen.getByText(/1,250 LYT/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /disconnect/i })).toBeInTheDocument();
 });
 

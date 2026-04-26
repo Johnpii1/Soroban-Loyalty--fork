@@ -56,3 +56,24 @@ export const indexerEventsTotal = new Counter({
   help: "Total number of on-chain events processed by the indexer",
   registers: [registry],
 });
+
+/** Total RPC poll failures (before backoff retry) */
+export const indexerPollErrors = new Counter({
+  name: "indexer_poll_errors_total",
+  help: "Total number of RPC poll errors encountered by the indexer",
+  registers: [registry],
+});
+
+/** Total events sent to the dead-letter store after exhausting retries */
+export const indexerDeadLetters = new Counter({
+  name: "indexer_dead_letters_total",
+  help: "Total number of events that failed processing after all retries",
+  registers: [registry],
+});
+
+/** Current exponential backoff delay in milliseconds */
+export const indexerBackoffMs = new Gauge({
+  name: "indexer_backoff_ms",
+  help: "Current exponential backoff delay applied to the indexer poll loop",
+  registers: [registry],
+});
