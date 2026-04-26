@@ -1,6 +1,7 @@
 import { Pool, PoolClient, PoolConfig } from "pg";
 import dotenv from "dotenv";
 import { logger } from "./logger";
+import { env } from "./env";
 
 dotenv.config();
 const TEST_ENVIRONMENTS = new Set(["test", "integration"]);

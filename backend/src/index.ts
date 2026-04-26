@@ -7,16 +7,22 @@ import { startIndexer, stopIndexer } from "./indexer/indexer";
 import { rpcServer } from "./soroban";
 import { pool } from "./db";
 import { registry, httpRequestsTotal, httpRequestDuration, dbPoolActive, dbPoolIdle, dbPoolWaiting } from "./metrics";
+import { logger, requestLogger, errorAlertMiddleware } from "./logger";
 
-// Load .env first (no-op in production where env vars are injected),
-// then fetch secrets from AWS Secrets Manager before any other init.
+// ── Startup sequence ──────────────────────────────────────────────────────────
+// 1. Load .env (no-op in production where vars are injected)
+// 2. Pull secrets from AWS Secrets Manager (populates process.env)
+// 3. Validate ALL env vars via Zod — exits with a clear error if anything is
+//    missing or malformed. Must happen before any service is initialised.
 dotenv.config();
 await loadSecrets();
 const app = createApp();
 
-// Catch unhandled promise rejections and exceptions
 process.on("unhandledRejection", (reason) => {
-  logger.critical("Unhandled promise rejection", reason instanceof Error ? reason : new Error(String(reason)));
+  logger.critical(
+    "Unhandled promise rejection",
+    reason instanceof Error ? reason : new Error(String(reason))
+  );
 });
 process.on("uncaughtException", (err) => {
   logger.critical("Uncaught exception", err);
