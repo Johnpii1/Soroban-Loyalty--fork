@@ -67,5 +67,12 @@
   },
   "dashboard": {
     "title": "Dashboard"
+  },
+  "sharing": {
+    "title": "Share Campaign",
+    "copyUrl": "Copy URL",
+    "downloadQR": "Download QR",
+    "copied": "URL copied to clipboard!",
+    "downloaded": "QR code downloaded!"
   }
 }

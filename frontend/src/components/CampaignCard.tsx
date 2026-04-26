@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Campaign } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 
@@ -17,6 +18,7 @@ export function CampaignCard({ campaign, onClaim, claiming }: Props) {
   const status = t(`campaigns.status.${statusKey}`);
   const canClaim = campaign.active && !expired;
 
+  const now = Date.now() / 1000;
   const secondsLeft = campaign.expiration - now;
   const daysLeft = Math.floor(secondsLeft / 86400);
   const hoursLeft = Math.floor((secondsLeft % 86400) / 3600);
@@ -34,12 +36,13 @@ export function CampaignCard({ campaign, onClaim, claiming }: Props) {
 
   return (
     <div className="card" style={{ position: "relative" }}>
-      <Confetti active={!!justClaimed} />
       <div className="card-header">
         <span className="badge" data-status={statusKey}>
           {status}
         </span>
-        <span className="campaign-id">{t('campaigns.details.campaign')} #{campaign.id}</span>
+        <Link href={`/campaigns/${campaign.id}`} className="campaign-id" style={{ textDecoration: 'none' }}>
+          {t('campaigns.details.campaign')} #{campaign.id}
+        </Link>
       </div>
       <div className="card-body">
         <p>
