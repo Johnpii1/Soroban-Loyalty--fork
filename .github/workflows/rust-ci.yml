@@ -48,6 +48,8 @@ jobs:
       - name: Clippy (warnings as errors)
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+      - name: Run integration tests (Issue #127)
+        run: cargo test -p soroban-loyalty-rewards test_integration --lib
       - name: Run tests
         run: cargo test --workspace
 

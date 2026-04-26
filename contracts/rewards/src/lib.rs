@@ -282,6 +282,149 @@ mod tests {
         t.rewards.claim_reward(&user1, &cid);
         t.rewards.claim_reward(&user2, &cid);
 
+    // ── Integration Tests (Issue #127) ───────────────────────────────────────
+
+    /// Flow 1: The Claim Loop - End-to-end reward claiming integration test
+    #[test]
+    fn test_integration_claim_loop() {
+        let t = setup();
+        let merchant = Address::generate(&t.env);
+        let user = Address::generate(&t.env);
+        let reward_amount = 1000_i128;
+        let expiry = t.env.ledger().timestamp() + 86400; // 24 hours
+
+        // 1. Create active campaign
+        let campaign_id = t.campaign.create_campaign(&merchant, &reward_amount, &expiry);
+        assert!(t.campaign.is_active(&campaign_id));
+
+        // 2. User claims reward
+        t.rewards.claim_reward(&user, &campaign_id);
+
+        // 3. Verify token was minted correctly via cross-contract call
+        assert_eq!(t.token.balance(&user), reward_amount);
+        assert_eq!(t.token.total_supply_view(), reward_amount);
+
+        // 4. Verify claim was recorded in rewards contract
+        assert!(t.rewards.has_claimed_view(&user, &campaign_id));
+    }
+
+    /// Flow 2: The Redemption Loop - End-to-end token redemption integration test
+    #[test]
+    fn test_integration_redemption_loop() {
+        let t = setup();
+        let merchant = Address::generate(&t.env);
+        let user = Address::generate(&t.env);
+        let reward_amount = 1000_i128;
+        let redeem_amount = 300_i128;
+        let expiry = t.env.ledger().timestamp() + 86400;
+
+        // Setup: User has claimed rewards
+        let campaign_id = t.campaign.create_campaign(&merchant, &reward_amount, &expiry);
+        t.rewards.claim_reward(&user, &campaign_id);
+        
+        // Verify initial balance from claim
+        assert_eq!(t.token.balance(&user), reward_amount);
+
+        // 1. User redeems tokens
+        t.rewards.redeem_reward(&user, &redeem_amount);
+
+        // 2. Verify tokens were burned correctly via cross-contract call
+        let expected_balance = reward_amount - redeem_amount;
+        assert_eq!(t.token.balance(&user), expected_balance);
+        assert_eq!(t.token.total_supply_view(), expected_balance);
+    }
+
+    /// Integration test: Multiple users, multiple campaigns with cross-contract interactions
+    #[test]
+    fn test_integration_multi_user_multi_campaign() {
+        let t = setup();
+        let merchant1 = Address::generate(&t.env);
+        let merchant2 = Address::generate(&t.env);
+        let user1 = Address::generate(&t.env);
+        let user2 = Address::generate(&t.env);
+        let expiry = t.env.ledger().timestamp() + 86400;
+
+        // Create two campaigns with different reward amounts
+        let campaign1_id = t.campaign.create_campaign(&merchant1, &100, &expiry);
+        let campaign2_id = t.campaign.create_campaign(&merchant2, &200, &expiry);
+
+        // User1 claims from both campaigns
+        t.rewards.claim_reward(&user1, &campaign1_id);
+        t.rewards.claim_reward(&user1, &campaign2_id);
+
+        // User2 claims from campaign1 only
+        t.rewards.claim_reward(&user2, &campaign1_id);
+
+        // Verify cross-contract token balances
+        assert_eq!(t.token.balance(&user1), 300); // 100 + 200
+        assert_eq!(t.token.balance(&user2), 100); // 100 only
+        assert_eq!(t.token.total_supply_view(), 400); // Total minted
+
+        // User1 redeems some tokens - tests cross-contract burn
+        t.rewards.redeem_reward(&user1, &150);
+        assert_eq!(t.token.balance(&user1), 150);
+        assert_eq!(t.token.total_supply_view(), 250); // Total after burn
+
+        // Verify claim states are maintained correctly
+        assert!(t.rewards.has_claimed_view(&user1, &campaign1_id));
+        assert!(t.rewards.has_claimed_view(&user1, &campaign2_id));
+        assert!(t.rewards.has_claimed_view(&user2, &campaign1_id));
+        assert!(!t.rewards.has_claimed_view(&user2, &campaign2_id));
+    }
+
+    /// Integration boundary test: Campaign expiration affects cross-contract interactions
+    #[test]
+    fn test_integration_campaign_expiration_boundary() {
+        let t = setup();
+        let merchant = Address::generate(&t.env);
+        let user1 = Address::generate(&t.env);
+        let user2 = Address::generate(&t.env);
+        let short_expiry = t.env.ledger().timestamp() + 10; // Short expiry
+
+        let campaign_id = t.campaign.create_campaign(&merchant, &500, &short_expiry);
+        
+        // User1 claims before expiry - should succeed
+        t.rewards.claim_reward(&user1, &campaign_id);
+        assert_eq!(t.token.balance(&user1), 500);
+        
+        // Advance time past expiry
+        t.env.ledger().with_mut(|l| l.timestamp = short_expiry + 1);
+        
+        // User2 tries to claim after expiry - should fail
+        let result = std::panic::catch_unwind(|| {
+            t.rewards.claim_reward(&user2, &campaign_id);
+        });
+        assert!(result.is_err());
+        
+        // Verify user2 has no tokens (claim failed)
+        assert_eq!(t.token.balance(&user2), 0);
+        assert_eq!(t.token.total_supply_view(), 500); // Only user1's tokens
+    }
+
+    /// Integration boundary test: Inactive campaign prevents cross-contract token minting
+    #[test]
+    fn test_integration_inactive_campaign_boundary() {
+        let t = setup();
+        let merchant = Address::generate(&t.env);
+        let user = Address::generate(&t.env);
+        let expiry = t.env.ledger().timestamp() + 86400;
+
+        let campaign_id = t.campaign.create_campaign(&merchant, &500, &expiry);
+        
+        // Deactivate campaign via campaign contract
+        t.campaign.set_active(&campaign_id, &false);
+        
+        // Attempt to claim should fail - no cross-contract token minting should occur
+        let result = std::panic::catch_unwind(|| {
+            t.rewards.claim_reward(&user, &campaign_id);
+        });
+        assert!(result.is_err());
+        
+        // Verify no tokens were minted
+        assert_eq!(t.token.balance(&user), 0);
+        assert_eq!(t.token.total_supply_view(), 0);
+        assert!(!t.rewards.has_claimed_view(&user, &campaign_id));
+    }
         assert_eq!(t.token.balance(&user1), 100);
         assert_eq!(t.token.balance(&user2), 100);
         assert_eq!(t.token.total_supply_view(), 200);
