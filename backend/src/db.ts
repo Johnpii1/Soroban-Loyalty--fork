@@ -1,64 +1,57 @@
-import { Pool } from "pg";
-import {
-  SecretsManagerClient,
-  GetSecretValueCommand,
-} from "@aws-sdk/client-secrets-manager";
+import { Pool, PoolClient, PoolConfig } from "pg";
 import dotenv from "dotenv";
 import { logger } from "./logger";
 import { env } from "./env";
 
 dotenv.config();
+const TEST_ENVIRONMENTS = new Set(["test", "integration"]);
 
-// ── Secret shape stored in AWS Secrets Manager ────────────────────────────────
-interface DbSecret {
-  username: string;
-  password: string;
-  host: string;
-  port: number;
-  dbname: string;
+function getPoolConfig(): PoolConfig {
+  const isTestEnv = TEST_ENVIRONMENTS.has(process.env.NODE_ENV ?? "");
+  const testUrl = process.env.TEST_DATABASE_URL;
+  const defaultUrl = process.env.DATABASE_URL;
+  const connectionString = isTestEnv && testUrl ? testUrl : defaultUrl;
+
+  if (connectionString) {
+    return { connectionString };
+  }
+
+  return {
+    host: process.env.POSTGRES_HOST ?? "localhost",
+    port: parseInt(process.env.POSTGRES_PORT ?? "5432", 10),
+    user: process.env.POSTGRES_USER ?? "loyalty",
+    password: process.env.POSTGRES_PASSWORD ?? "loyalty",
+    database: process.env.POSTGRES_DB ?? "loyalty",
+  };
 }
 
-const secretsClient = new SecretsManagerClient({ region: env.AWS_REGION });
-
-// ── Pool — initialised from DATABASE_URL; rotated when DB creds change ────────
-export let pool = new Pool({ connectionString: env.DATABASE_URL });
+export const pool = new Pool(getPoolConfig());
 
 pool.on("error", (err) => {
   logger.critical("DB connection error", err);
 });
 
-function isAuthError(err: any): boolean {
-  return ["28P01", "28000"].includes(err?.code);
-}
-
-async function rotatePool(): Promise<void> {
-  if (!env.SECRETS_ARN) return;
-
-  try {
-    const response = await secretsClient.send(
-      new GetSecretValueCommand({ SecretId: env.SECRETS_ARN })
-    );
-    if (!response.SecretString) return;
-
-    const secret: DbSecret = JSON.parse(response.SecretString);
-    const connectionString =
-      `postgres://${secret.username}:${encodeURIComponent(secret.password)}` +
-      `@${secret.host}:${secret.port}/${secret.dbname}`;
-
-    const newPool = new Pool({ connectionString });
-    const old = pool;
-    pool = newPool;
-    pool.on("error", (err) => {
-      logger.critical("DB connection error", err);
-    });
-    await old.end();
-    logger.info("[db] Pool rotated from Secrets Manager credentials");
-  } catch (err) {
-    logger.error("[db] Failed to rotate pool", err instanceof Error ? err : new Error(String(err)));
-  }
-}
-
-// ── Initialise pool from Secrets Manager on startup ──────────────────────────
 export async function initDb(): Promise<void> {
-  await rotatePool();
+  await pool.query("SELECT 1");
+}
+
+export async function closeDb(): Promise<void> {
+  await pool.end();
+}
+
+export async function withTransaction<T>(
+  operation: (client: PoolClient) => Promise<T>
+): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await operation(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }

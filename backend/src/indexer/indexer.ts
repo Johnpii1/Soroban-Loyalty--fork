@@ -42,41 +42,10 @@ const MAX_EVENT_RETRIES  = 3;       // per-event retries before dead-letter
 export let currentBackoffMs = 0;    // 0 = no active backoff
 let consecutiveFailures    = 0;
 
-/** Exported for tests — resets backoff state between test cases. */
-export function resetBackoff(): void {
-  currentBackoffMs    = 0;
-  consecutiveFailures = 0;
-  indexerBackoffMs.set(0);
-}
+let indexerInterval: ReturnType<typeof setInterval> | null = null;
 
-// ── Backoff helpers ───────────────────────────────────────────────────────────
-
-/**
- * Calculate the next backoff delay with full-jitter.
- * Exported for unit testing.
- */
-export function calcBackoff(failures: number): number {
-  const base    = Math.min(BACKOFF_BASE_MS * Math.pow(BACKOFF_MULTIPLIER, failures - 1), BACKOFF_MAX_MS);
-  const jitter  = base * JITTER_FACTOR * (Math.random() * 2 - 1); // ±20%
-  return Math.round(Math.max(BACKOFF_BASE_MS, base + jitter));
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// ── DB helpers ────────────────────────────────────────────────────────────────
-
-export async function ensureIndexerTable(): Promise<void> {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS indexer_state (
-      key   VARCHAR(64) PRIMARY KEY,
-      value TEXT NOT NULL
-    )
-  `);
-}
-
-export async function getCursor(): Promise<string | undefined> {
+// Persist cursor so we don't re-process events on restart
+async function getCursor(): Promise<string | undefined> {
   const { rows } = await pool.query<{ value: string }>(
     `SELECT value FROM indexer_state WHERE key = 'cursor' LIMIT 1`
   );
@@ -291,8 +260,10 @@ async function poll(): Promise<void> {
 
 /**
  * Starts the background event indexer.
- * Polls Soroban RPC with exponential backoff on failures.
- * Resumes from the last persisted cursor on restart.
+ * It polls the Soroban RPC for contract events (Campaign creation, Reward claim/redeem)
+ * and persists them to the local database.
+ *
+ * @returns A promise that resolves when the indexer has started its initial poll.
  */
 export async function startIndexer(): Promise<void> {
   await ensureIndexerTable();
@@ -307,6 +278,19 @@ export async function startIndexer(): Promise<void> {
     setTimeout(loop, delay);
   };
 
-  // Kick off immediately
-  await loop();
+  // Run immediately then on interval
+  await poll();
+  indexerInterval = setInterval(poll, POLL_INTERVAL_MS);
+}
+
+/**
+ * Stops the background indexer polling loop.
+ * Called during graceful shutdown to prevent the indexer from running after the server exits.
+ */
+export function stopIndexer(): void {
+  if (indexerInterval !== null) {
+    clearInterval(indexerInterval);
+    indexerInterval = null;
+    console.log("[indexer] stopped");
+  }
 }
