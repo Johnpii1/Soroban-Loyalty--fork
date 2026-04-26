@@ -11,6 +11,7 @@ groups:
         annotations:
           summary: "Error rate > 1%"
           description: "HTTP 5xx error rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+          runbook_url: "docs/runbooks/operations.md#1-service-restart"
 
       - alert: HighP99Latency
         expr: |
@@ -21,6 +22,7 @@ groups:
         annotations:
           summary: "p99 latency > 2s"
           description: "p99 request latency is {{ $value }}s."
+          runbook_url: "docs/runbooks/operations.md#1-service-restart"
 
       - alert: IndexerLag
         expr: indexer_lag_blocks > 100
@@ -30,3 +32,4 @@ groups:
         annotations:
           summary: "Indexer lag > 100 blocks"
           description: "Indexer is {{ $value }} blocks behind the chain tip."
+          runbook_url: "docs/runbooks/operations.md#2-indexer-replay"
