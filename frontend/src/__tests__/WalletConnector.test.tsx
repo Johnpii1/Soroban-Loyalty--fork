@@ -6,8 +6,12 @@ import React from "react";
 const makeCtx = (overrides = {}) => ({
   publicKey: null,
   connecting: false,
+  mounted: true,
+  lytBalance: 0,
+  balanceLoading: false,
   connect: jest.fn(),
   disconnect: jest.fn(),
+  refreshBalance: jest.fn(),
   ...overrides,
 });
 
@@ -37,8 +41,9 @@ test("calls connect on click", () => {
 });
 
 test("shows truncated key and disconnect when connected", () => {
-  wrap(makeCtx({ publicKey: "GABCDEFGHIJKLMNOP" }));
+  wrap(makeCtx({ publicKey: "GABCDEFGHIJKLMNOP", lytBalance: 1250 }));
   expect(screen.getByText(/GABCDE/)).toBeInTheDocument();
+  expect(screen.getByText(/1,250 LYT/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /disconnect/i })).toBeInTheDocument();
 });
 

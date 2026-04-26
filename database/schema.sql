@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_rewards_user ON rewards(user_address);
+CREATE INDEX IF NOT EXISTS idx_rewards_user_claimed_at ON rewards(user_address, claimed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_rewards_campaign ON rewards(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_address);
 CREATE INDEX IF NOT EXISTS idx_campaigns_merchant ON campaigns(merchant);
