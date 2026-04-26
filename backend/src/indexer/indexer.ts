@@ -155,6 +155,11 @@ async function processEvent(event: SorobanRpc.Api.RawEventResponse): Promise<voi
   if (event.contractId === CAMPAIGN_CONTRACT && eventName === "CAM_CRT") {
     const id       = decodeU64(topics[2]);
     const merchant = decodeAddress(xdr.ScVal.fromXDR(event.value, "base64"));
+    
+    // Fetch mapped image URL if exists
+    const { getCampaignImageByTxHash } = require("../services/campaign.service");
+    const imageUrl = await getCampaignImageByTxHash(event.txHash);
+
     await upsertCampaign({
       id,
       merchant,
@@ -163,7 +168,8 @@ async function processEvent(event: SorobanRpc.Api.RawEventResponse): Promise<voi
       active: true,
       total_claimed: 0,
       tx_hash: event.txHash,
-    });
+      image_url: imageUrl || undefined,
+    } as any);
     await recordTransaction(event.txHash, "campaign_created", merchant, id, null, event.ledger);
     logger.info(`[indexer] CampaignCreated id=${id} merchant=${merchant}`);
   }

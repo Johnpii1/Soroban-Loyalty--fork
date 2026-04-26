@@ -460,4 +460,45 @@ body {
   padding: 2px 4px;
   flex-shrink: 0;
 }
-.toast-dismiss:hover { opacity: 1; }
+/* ── Transaction Table ────────────────────────────────────────────────────── */
+.transaction-table-container {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.transaction-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.transaction-table th {
+  padding: 16px;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.transaction-table td {
+  padding: 16px;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.transaction-table tr:last-child td {
+  border-bottom: none;
+}
+
+.transaction-table tr:hover {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.badge-claim { background: rgba(124, 106, 247, 0.15); color: #7c6af7; border: 1px solid rgba(124, 106, 247, 0.3); }
+.badge-redeem { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }

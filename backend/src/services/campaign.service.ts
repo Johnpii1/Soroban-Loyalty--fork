@@ -9,20 +9,44 @@ export interface Campaign {
   total_claimed: number;
   display_order: number;
   tx_hash?: string;
+  image_url?: string;
   created_at: Date;
   deleted_at?: Date | null;
 }
 
 export async function upsertCampaign(c: Omit<Campaign, "created_at" | "display_order" | "deleted_at">): Promise<void> {
   await pool.query(
-    `INSERT INTO campaigns (id, merchant, reward_amount, expiration, active, total_claimed, tx_hash)
-     VALUES ($1,$2,$3,$4,$5,$6,$7)
+    `INSERT INTO campaigns (id, merchant, reward_amount, expiration, active, total_claimed, tx_hash, image_url)
+     VALUES ($1,$2,$3,$4,$5,$6,$7, $8)
      ON CONFLICT (id) DO UPDATE SET
        active = EXCLUDED.active,
        total_claimed = EXCLUDED.total_claimed,
+       image_url = COALESCE(EXCLUDED.image_url, campaigns.image_url),
        updated_at = NOW()`,
-    [c.id, c.merchant, c.reward_amount, c.expiration, c.active, c.total_claimed, c.tx_hash ?? null]
+    [c.id, c.merchant, c.reward_amount, c.expiration, c.active, c.total_claimed, c.tx_hash ?? null, (c as any).image_url ?? null]
   );
+}
+
+/**
+ * Temporarily maps a transaction hash to an image URL.
+ */
+export async function saveCampaignImageMapping(txHash: string, imageUrl: string): Promise<void> {
+  await pool.query(
+    `INSERT INTO campaign_image_mappings (tx_hash, image_url) VALUES ($1, $2)
+     ON CONFLICT (tx_hash) DO UPDATE SET image_url = EXCLUDED.image_url`,
+    [txHash, imageUrl]
+  );
+}
+
+/**
+ * Retrieves the image URL for a given transaction hash, if any.
+ */
+export async function getCampaignImageByTxHash(txHash: string): Promise<string | null> {
+  const { rows } = await pool.query<{ image_url: string }>(
+    `SELECT image_url FROM campaign_image_mappings WHERE tx_hash = $1`,
+    [txHash]
+  );
+  return rows[0]?.image_url ?? null;
 }
 
 export async function getCampaigns(limit = 20, offset = 0): Promise<{ campaigns: Campaign[]; total: number }> {

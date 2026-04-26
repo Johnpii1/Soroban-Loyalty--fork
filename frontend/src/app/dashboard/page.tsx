@@ -10,6 +10,7 @@ import { RewardList } from "@/components/RewardList";
 import { NetworkBanner } from "@/components/NetworkBanner";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { EmptyState } from "@/components/EmptyState";
+import Link from "next/link";
 
 const PAGE_SIZE = 20;
 
@@ -28,6 +29,25 @@ export default function DashboardPage() {
   const [total, setTotal] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const loadCampaigns = useCallback(async (currentOffset: number, initial = false) => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const r = await api.getCampaigns(PAGE_SIZE, currentOffset);
+      if (initial) {
+        setCampaigns(r.campaigns);
+      } else {
+        setCampaigns((prev) => [...prev, ...r.campaigns]);
+      }
+      setTotal(r.total);
+      setOffset(currentOffset + r.campaigns.length);
+    } catch (err) {
+      console.error("Failed to load campaigns", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore]);
 
   const networkDisabled = health.status === 'unreachable';
 
@@ -157,7 +177,12 @@ export default function DashboardPage() {
 
       {publicKey && (
         <section style={{ marginTop: 40 }}>
-          <h2 className="section-title">{t('rewards.title')}</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 className="section-title" style={{ marginBottom: 0 }}>{t('rewards.title')}</h2>
+            <Link href="/dashboard/history" className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '4px 12px' }}>
+              View History
+            </Link>
+          </div>
           <RewardList
             rewards={rewards}
             onRedeem={networkDisabled ? undefined : handleRedeem}
