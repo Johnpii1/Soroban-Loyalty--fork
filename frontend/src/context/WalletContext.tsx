@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { connectWallet, getPublicKey } from "@/lib/freighter";
+import { useToast } from "./ToastContext";
 
 interface WalletCtx {
   publicKey: string | null;
@@ -22,10 +23,8 @@ export const WalletContext = createContext<WalletCtx>({
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
-  // `mounted` is false on the server and during the first render,
-  // preventing any wallet-dependent UI from rendering until the client
-  // has hydrated — eliminating the hydration mismatch.
   const [mounted, setMounted] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     setMounted(true);
@@ -37,12 +36,20 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     try {
       const key = await connectWallet();
       setPublicKey(key);
+      toast(`Wallet connected: ${key.slice(0, 6)}...${key.slice(-4)}`, 'success');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to connect wallet';
+      toast(errorMessage, 'error');
+      console.error('Wallet connection error:', error);
     } finally {
       setConnecting(false);
     }
-  }, []);
+  }, [toast]);
 
-  const disconnect = useCallback(() => setPublicKey(null), []);
+  const disconnect = useCallback(() => {
+    setPublicKey(null);
+    toast('Wallet disconnected', 'info');
+  }, [toast]);
 
   return (
     <WalletContext.Provider value={{ publicKey, connecting, mounted, connect, disconnect }}>
