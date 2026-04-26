@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "./test-utils";
 import { WalletConnector } from "@/components/WalletConnector";
 import { WalletContext } from "@/context/WalletContext";
 import React from "react";
@@ -18,6 +18,16 @@ const wrap = (ctx: ReturnType<typeof makeCtx>) =>
     </WalletContext.Provider>
   );
 
+beforeEach(() => {
+  // Simulate Freighter being installed so connect() is called directly
+  Object.defineProperty(window, "freighter", { value: {}, configurable: true });
+});
+
+afterEach(() => {
+  // @ts-expect-error cleanup
+  delete window.freighter;
+});
+
 test("shows Connect button when disconnected", () => {
   wrap(makeCtx());
   expect(screen.getByRole("button", { name: /connect freighter/i })).toBeInTheDocument();
@@ -29,10 +39,12 @@ test("shows connecting state", () => {
   expect(screen.getByRole("button")).toBeDisabled();
 });
 
-test("calls connect on click", () => {
+test("calls connect on click", async () => {
   const ctx = makeCtx();
   wrap(ctx);
   fireEvent.click(screen.getByRole("button"));
+  // handleConnect is async; wait a tick
+  await Promise.resolve();
   expect(ctx.connect).toHaveBeenCalledTimes(1);
 });
 
