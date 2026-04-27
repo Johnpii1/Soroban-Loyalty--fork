@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.12.0...v1.13.0) (2026-04-27)
+
+
+### Features
+
+* **ui:** add multi-step transaction progress indicator ([#54](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/54)) ([bb94699](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/bb946995c002e6f002306edaef112efbcad7bec9))
+
 # [1.12.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.11.0...v1.12.0) (2026-04-27)
 
 
