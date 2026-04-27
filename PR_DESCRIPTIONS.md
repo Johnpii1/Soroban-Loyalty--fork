@@ -162,6 +162,8 @@ The "Closes #XX" at the end of each description will automatically close the cor
 
 ---
 
+---
+
 ## Merge Order Recommendation
 
 While all PRs can be merged independently, the recommended merge order is:
@@ -170,5 +172,33 @@ While all PRs can be merged independently, the recommended merge order is:
 2. **#59 (Network Status)** - Backend + Frontend, no dependencies
 3. **#40 (Internationalization)** - Adds new dependencies, affects all components
 4. **#60 (CSV Export)** - New feature, minimal conflicts
+5. **#112 (Contract Upgrade)** - Critical security feature
 
 Alternatively, all can be merged together if testing is done on a combined branch first.
+
+---
+
+## PR #112: Implement Contract Upgrade Mechanism with Timelock
+
+### Branch: `feat/contract-upgrade-timelock`
+
+### Title
+Implement contract upgrade mechanism with 48-hour timelock and multi-sig
+
+### Description
+This PR introduces a secure governance layer for contract upgrades, ensuring that all WASM updates are subject to a mandatory timelock and multi-admin authorization.
+
+#### Changes Made
+- **Upgrade Proposal**: Added `propose_upgrade` to initiate an upgrade with a WASM hash.
+- **Multi-sig (N-of-M)**: Implemented `authorize_upgrade` to collect signatures from multiple admins.
+- **Timelock**: Enforced a 48-hour delay (172,800 seconds) between proposal and execution.
+- **Emergency Controls**: Added `cancel_upgrade` for authorized admins to abort pending proposals.
+- **Transparency**: Integrated indexer-friendly events (`UPG_PROP`, `UPG_AUTH`, `UPG_EXEC`, `UPG_CAN`).
+- **Initialization**: Updated `initialize` to accept a vector of admins and a signature threshold.
+
+#### Testing
+- ✅ Unit tests for the full upgrade lifecycle
+- ✅ Verification of timelock and threshold constraints
+- ✅ Event emission validation
+
+Closes #112

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "./test-utils";
 import { CampaignCard } from "@/components/CampaignCard";
 import { Campaign } from "@/lib/api";
 
@@ -10,6 +10,9 @@ const base: Campaign = {
   active: true,
   total_claimed: 10,
 };
+
+beforeEach(() => jest.useFakeTimers());
+afterEach(() => jest.useRealTimers());
 
 test("renders campaign details", () => {
   render(<CampaignCard campaign={base} />);
@@ -43,11 +46,33 @@ test("shows Inactive badge for inactive campaign", () => {
 test("shows Expired badge for expired campaign", () => {
   const expired = { ...base, expiration: Math.floor(Date.now() / 1000) - 1 };
   render(<CampaignCard campaign={expired} />);
-  expect(screen.getByText(/Expired/i)).toBeInTheDocument();
+  expect(screen.getByText(/Expired/i, { selector: ".badge" })).toBeInTheDocument();
 });
 
 test("disables claim for expired campaign", () => {
   const expired = { ...base, expiration: Math.floor(Date.now() / 1000) - 1 };
   render(<CampaignCard campaign={expired} onClaim={jest.fn()} />);
   expect(screen.getByRole("button")).toBeDisabled();
+});
+
+test("countdown shows days/hours/minutes/seconds for active campaign", () => {
+  render(<CampaignCard campaign={base} />);
+  const countdown = screen.getByTestId("countdown");
+  // May show "Xd Xh Xm Xs left" or "Xh Xm Xs left" depending on exact timing
+  expect(countdown.textContent).toMatch(/(\d+d )?\d+h \d+m \d+s left/);
+});
+
+test("countdown ticks every second", () => {
+  render(<CampaignCard campaign={base} />);
+  const before = screen.getByTestId("countdown").textContent;
+  act(() => { jest.advanceTimersByTime(1000); });
+  const after = screen.getByTestId("countdown").textContent;
+  expect(before).not.toBe(after);
+});
+
+test("shows 'Expired' in countdown when campaign expires", () => {
+  const soonExpired = { ...base, expiration: Math.floor(Date.now() / 1000) + 1 };
+  render(<CampaignCard campaign={soonExpired} />);
+  act(() => { jest.advanceTimersByTime(2000); });
+  expect(screen.getByTestId("countdown").textContent).toBe("Expired");
 });

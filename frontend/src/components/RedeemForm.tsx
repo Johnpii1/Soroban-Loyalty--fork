@@ -1,34 +1,35 @@
 "use client";
 
 import { useState } from "react";
+import { useSorobanTransaction } from "@/hooks/useSorobanTransaction";
+import { SorobanErrorBoundary } from "./SorobanErrorBoundary";
 
 interface Props {
   balance: number;
   onRedeem: (amount: number) => Promise<void>;
 }
 
-export function RedeemForm({ balance, onRedeem }: Props) {
+function RedeemFormContent({ balance, onRedeem }: Props) {
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<"input" | "confirm">("input");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { execute, loading, error, clearError } = useSorobanTransaction({
+    showToast: true,
+    onSuccess: () => {
+      setAmount("");
+      setStep("input");
+      clearError();
+    }
+  });
 
   const parsed = parseFloat(amount);
   const isValid = !isNaN(parsed) && parsed > 0 && parsed <= balance;
 
   const handleConfirm = async () => {
-    setLoading(true);
-    setError(null);
-    try {
+    if (!isValid) return;
+    
+    await execute(async () => {
       await onRedeem(parsed);
-      setAmount("");
-      setStep("input");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Redeem failed");
-      setStep("input");
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   return (
@@ -41,7 +42,19 @@ export function RedeemForm({ balance, onRedeem }: Props) {
           </div>
         </div>
 
-        {error && <div className="alert alert-error">{error}</div>}
+        {error && (
+          <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
+            {error.userMessage}
+            {error.shouldShowRetry && (
+              <button 
+                onClick={handleConfirm}
+                style={{ marginLeft: '0.5rem', textDecoration: 'underline' }}
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        )}
 
         {step === "input" ? (
           <>
@@ -54,6 +67,7 @@ export function RedeemForm({ balance, onRedeem }: Props) {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder={`Max ${balance.toLocaleString()}`}
+                disabled={loading}
               />
               {amount && !isValid && (
                 <span style={{ fontSize: "0.8rem", color: "#f87171" }}>
@@ -63,7 +77,7 @@ export function RedeemForm({ balance, onRedeem }: Props) {
             </div>
             <button
               className="btn btn-primary"
-              disabled={!isValid}
+              disabled={!isValid || loading}
               onClick={() => setStep("confirm")}
               style={{ width: "100%" }}
             >
@@ -92,12 +106,20 @@ export function RedeemForm({ balance, onRedeem }: Props) {
                 disabled={loading}
                 style={{ flex: 1 }}
               >
-                {loading ? "Confirming…" : "Confirm & Burn"}
+                {loading ? "Processing..." : "Confirm & Burn"}
               </button>
             </div>
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+export function RedeemForm(props: Props) {
+  return (
+    <SorobanErrorBoundary>
+      <RedeemFormContent {...props} />
+    </SorobanErrorBoundary>
   );
 }
