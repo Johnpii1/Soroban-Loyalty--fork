@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.6.0...v1.7.0) (2026-04-27)
+
+
+### Features
+
+* add event emission to all state-changing contract functions ([#115](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/115)) ([a62a38a](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/a62a38af74ebefacef7979c3a77888fda324bb0a))
+
 # [1.6.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.5.0...v1.6.0) (2026-04-27)
 
 
