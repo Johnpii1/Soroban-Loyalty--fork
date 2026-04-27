@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.14.0...v1.15.0) (2026-04-27)
+
+
+### Features
+
+* **ui:** design and implement landing page ([#55](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/55)) ([da5dffd](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/da5dffd0017f06287221752648c1a41fe4c03064))
+
 # [1.14.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.13.0...v1.14.0) (2026-04-27)
 
 
