@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { api, AnalyticsData } from "@/lib/api";
+import { ExperimentStatsPanel } from "@/components/ExperimentStatsPanel";
 
 import { StatCardsSkeleton, BarChartSkeleton, LineChartSkeleton } from "@/components/ChartSkeleton";
 const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), { ssr: false });
@@ -173,6 +174,10 @@ export default function AnalyticsPage() {
           )}
         </>
       ) : null}
+
+      {/* A/B Experiment Results */}
+      <h2 className="section-title" style={{ marginTop: 40 }}>A/B Experiment Results</h2>
+      <ExperimentStatsPanel />
     </div>
   );
 }
