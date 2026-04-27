@@ -56,6 +56,12 @@ function RedeemFormContent({ balance, onRedeem }: Props) {
           </div>
         )}
 
+        {open && (
+          <div style={{ marginBottom: 16 }}>
+            <TransactionProgress steps={steps} onRetry={reset} />
+          </div>
+        )}
+
         {step === "input" ? (
           <>
             <div className="form-group">
@@ -95,7 +101,7 @@ function RedeemFormContent({ balance, onRedeem }: Props) {
               <button
                 className="btn btn-outline"
                 onClick={() => setStep("input")}
-                disabled={loading}
+                disabled={open}
                 style={{ flex: 1 }}
               >
                 Cancel
@@ -103,7 +109,7 @@ function RedeemFormContent({ balance, onRedeem }: Props) {
               <button
                 className="btn btn-primary"
                 onClick={handleConfirm}
-                disabled={loading}
+                disabled={open}
                 style={{ flex: 1 }}
               >
                 {loading ? "Processing..." : "Confirm & Burn"}
