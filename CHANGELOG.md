@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.3.0...v1.4.0) (2026-04-27)
+
+
+### Features
+
+* Implement campaign sharing via unique URL and QR code ([4b9eff0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/4b9eff00c85f2acff61c26cd529c22c7d88487e8))
+
 # [1.3.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.2.0...v1.3.0) (2026-04-27)
 
 
