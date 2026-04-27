@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.2.0...v1.3.0) (2026-04-27)
+
+
+### Features
+
+* **token:** add ERC-20-style allowance mechanism ([5590228](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/5590228120af2bc2e7ecb2587681341d9935fb2b)), closes [#118](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/118)
+
 # [1.2.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.1.0...v1.2.0) (2026-04-27)
 
 
