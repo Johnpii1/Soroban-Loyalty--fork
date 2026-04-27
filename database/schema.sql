@@ -48,3 +48,10 @@ CREATE INDEX IF NOT EXISTS idx_rewards_user_claimed_at ON rewards(user_address, 
 CREATE INDEX IF NOT EXISTS idx_rewards_campaign ON rewards(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_address);
 CREATE INDEX IF NOT EXISTS idx_campaigns_merchant ON campaigns(merchant);
+
+-- Performance indexes (added via migration 002_add_performance_indexes.sql)
+CREATE INDEX IF NOT EXISTS idx_rewards_user_campaign ON rewards(user_address, campaign_id);
+CREATE INDEX IF NOT EXISTS idx_campaigns_expiration ON campaigns(expiration);
+CREATE INDEX IF NOT EXISTS idx_campaigns_active ON campaigns(active) WHERE active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_transactions_campaign ON transactions(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_rewards_redeemed ON rewards(redeemed) WHERE redeemed = FALSE;
