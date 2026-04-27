@@ -1,7 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, token, Address, Env, String, Symbol,
+    contract, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol,
 };
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
@@ -10,6 +10,7 @@ use soroban_sdk::{
 pub enum DataKey {
     Admin,
     Balance(Address),
+    Allowance(Address, Address), // (owner, spender)
     TotalSupply,
     Name,
     Symbol,
@@ -21,6 +22,7 @@ pub enum DataKey {
 const MINT: Symbol = symbol_short!("MINT");
 const TRANSFER: Symbol = symbol_short!("TRANSFER");
 const BURN: Symbol = symbol_short!("BURN");
+const APPROVAL: Symbol = symbol_short!("APPROVAL");
 
 // ── Contract ──────────────────────────────────────────────────────────────────
 
@@ -85,6 +87,21 @@ impl TokenContract {
             .set(&DataKey::TotalSupply, &supply);
     }
 
+    // ── Allowance helpers ─────────────────────────────────────────────────────
+
+    fn get_allowance(env: &Env, owner: &Address, spender: &Address) -> i128 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Allowance(owner.clone(), spender.clone()))
+            .unwrap_or(0)
+    }
+
+    fn set_allowance(env: &Env, owner: &Address, spender: &Address, amount: i128) {
+        env.storage()
+            .persistent()
+            .set(&DataKey::Allowance(owner.clone(), spender.clone()), &amount);
+    }
+
     // ── Public interface ──────────────────────────────────────────────────────
 
     pub fn mint(env: Env, to: Address, amount: i128) {
@@ -135,6 +152,42 @@ impl TokenContract {
 
         env.events()
             .publish((TRANSFER, symbol_short!("from"), from), (to, amount));
+    }
+
+    /// Approve `spender` to transfer up to `amount` tokens on behalf of the caller.
+    pub fn approve(env: Env, owner: Address, spender: Address, amount: i128) {
+        owner.require_auth();
+        assert!(amount >= 0, "amount must be non-negative");
+        Self::set_allowance(&env, &owner, &spender, amount);
+        env.events()
+            .publish((APPROVAL, symbol_short!("owner"), owner), (spender, amount));
+    }
+
+    /// Transfer `amount` tokens from `from` to `to` using the caller's allowance.
+    pub fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128) {
+        spender.require_auth();
+        assert!(amount > 0, "amount must be positive");
+
+        let current = Self::get_allowance(&env, &from, &spender);
+        assert!(current >= amount, "allowance exceeded");
+
+        let from_bal = Self::balance_of(&env, &from);
+        assert!(from_bal >= amount, "insufficient balance");
+
+        Self::set_allowance(&env, &from, &spender, current - amount);
+        Self::set_balance(&env, &from, from_bal - amount);
+        let to_bal = Self::balance_of(&env, &to)
+            .checked_add(amount)
+            .expect("overflow");
+        Self::set_balance(&env, &to, to_bal);
+
+        env.events()
+            .publish((TRANSFER, symbol_short!("from"), from), (to, amount));
+    }
+
+    /// Returns the remaining allowance for `spender` on behalf of `owner`.
+    pub fn allowance(env: Env, owner: Address, spender: Address) -> i128 {
+        Self::get_allowance(&env, &owner, &spender)
     }
 
     pub fn balance(env: Env, addr: Address) -> i128 {
@@ -237,5 +290,52 @@ mod tests {
         let bob = Address::generate(&env);
         client.mint(&alice, &50);
         client.transfer(&alice, &bob, &100);
+    }
+
+    // ── Allowance tests ───────────────────────────────────────────────────────
+
+    #[test]
+    fn test_approve_and_allowance() {
+        let (env, _admin, client) = setup();
+        let alice = Address::generate(&env);
+        let spender = Address::generate(&env);
+        client.approve(&alice, &spender, &500);
+        assert_eq!(client.allowance(&alice, &spender), 500);
+    }
+
+    #[test]
+    fn test_transfer_from_within_allowance() {
+        let (env, _admin, client) = setup();
+        let alice = Address::generate(&env);
+        let bob = Address::generate(&env);
+        let spender = Address::generate(&env);
+        client.mint(&alice, &1000);
+        client.approve(&alice, &spender, &300);
+        client.transfer_from(&spender, &alice, &bob, &200);
+        assert_eq!(client.balance(&alice), 800);
+        assert_eq!(client.balance(&bob), 200);
+        assert_eq!(client.allowance(&alice, &spender), 100);
+    }
+
+    #[test]
+    #[should_panic(expected = "allowance exceeded")]
+    fn test_transfer_from_exceeds_allowance() {
+        let (env, _admin, client) = setup();
+        let alice = Address::generate(&env);
+        let bob = Address::generate(&env);
+        let spender = Address::generate(&env);
+        client.mint(&alice, &1000);
+        client.approve(&alice, &spender, &100);
+        client.transfer_from(&spender, &alice, &bob, &200);
+    }
+
+    #[test]
+    fn test_approve_overwrite() {
+        let (env, _admin, client) = setup();
+        let alice = Address::generate(&env);
+        let spender = Address::generate(&env);
+        client.approve(&alice, &spender, &500);
+        client.approve(&alice, &spender, &100);
+        assert_eq!(client.allowance(&alice, &spender), 100);
     }
 }
