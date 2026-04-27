@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.4.0...v1.5.0) (2026-04-27)
+
+
+### Features
+
+* implement centralized error handling middleware ([a937d6f](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/a937d6fa32af3e99357b52c414159d6030faa403)), closes [#15](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/15)
+
 # [1.4.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.3.0...v1.4.0) (2026-04-27)
 
 
