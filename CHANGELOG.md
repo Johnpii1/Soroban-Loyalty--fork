@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.8.0...v1.9.0) (2026-04-27)
+
+
+### Features
+
+* **infra:** add Terraform IaC modules for cloud resources ([e482ec1](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/e482ec11f425d1168a95d0dc048df49b7f6c2c40)), closes [#75](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/75)
+
 # [1.8.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.7.0...v1.8.0) (2026-04-27)
 
 
