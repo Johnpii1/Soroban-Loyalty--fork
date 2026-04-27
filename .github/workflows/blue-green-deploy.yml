@@ -33,7 +33,7 @@ jobs:
           chmod 600 "$HOME/.kube/config"
 
       - name: Build & push backend image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./backend
           push: true
@@ -42,7 +42,7 @@ jobs:
           DOCKER_BUILDKIT: "1"
 
       - name: Build & push frontend image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./frontend
           push: true
