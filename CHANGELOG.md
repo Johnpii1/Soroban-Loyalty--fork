@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.5.0...v1.6.0) (2026-04-27)
+
+
+### Features
+
+* implement error boundary for Soroban transaction failures ([bac56e8](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/bac56e8118090c5edf5e90bd79bca4630e1c7cf3)), closes [#25](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/25)
+
 # [1.5.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.4.0...v1.5.0) (2026-04-27)
 
 
