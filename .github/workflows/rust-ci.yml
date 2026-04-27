@@ -75,7 +75,7 @@ jobs:
 
       - name: Post audit results as PR comment
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -89,7 +89,7 @@ jobs:
 
       - name: Open issue for high vulnerabilities
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
