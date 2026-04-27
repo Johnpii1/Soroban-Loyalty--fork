@@ -190,7 +190,9 @@ mod tests {
         let campaign_id_addr = env.register_contract(None, CampaignContract);
         let campaign =
             soroban_loyalty_campaign::CampaignContractClient::new(&env, &campaign_id_addr);
-        campaign.initialize(&admin);
+        let mut campaign_admins = soroban_sdk::Vec::new(&env);
+        campaign_admins.push_back(admin.clone());
+        campaign.initialize(&campaign_admins, &1);
 
         let rewards_id = env.register_contract(None, RewardsContract);
         let rewards = RewardsContractClient::new(&env, &rewards_id);
