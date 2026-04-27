@@ -1,3 +1,10 @@
+# [1.11.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.10.0...v1.11.0) (2026-04-27)
+
+
+### Features
+
+* add time-weighted reward multiplier to rewards contract ([e4201aa](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/e4201aaf88d9e9ef3ab805526f4611832b1cad32))
+
 # [1.10.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.9.0...v1.10.0) (2026-04-27)
 
 
