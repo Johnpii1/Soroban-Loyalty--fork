@@ -27,7 +27,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     <>
       <header className="site-header">
         <a href="/" className="logo">SorobanLoyalty</a>
-        <nav>
+        <nav className="desktop-nav">
           <a href="/dashboard">Dashboard</a>
           <a href="/merchant">Merchant</a>
           <a href="/analytics">Analytics</a>
@@ -44,6 +44,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
         </button>
         <NetworkStatusIndicator health={health} />
         <WalletConnector />
+        <MobileNav />
       </header>
       <main className="site-main">{children}</main>
       <GlobalSearch />
