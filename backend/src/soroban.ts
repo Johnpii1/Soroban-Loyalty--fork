@@ -1,10 +1,5 @@
-import { SorobanRpc, Networks } from "@stellar/stellar-sdk";
-import dotenv from "dotenv";
+import { SorobanRpc } from "@stellar/stellar-sdk";
+import { env } from "./env";
 
-dotenv.config();
-
-const RPC_URL = process.env.SOROBAN_RPC_URL ?? "http://localhost:8000/soroban/rpc";
-const NETWORK_PASSPHRASE = process.env.NETWORK_PASSPHRASE ?? Networks.TESTNET;
-
-export const rpcServer = new SorobanRpc.Server(RPC_URL, { allowHttp: true });
-export { NETWORK_PASSPHRASE };
+export const rpcServer = new SorobanRpc.Server(env.SOROBAN_RPC_URL, { allowHttp: true });
+export const NETWORK_PASSPHRASE = env.NETWORK_PASSPHRASE;

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "./test-utils";
 import { RewardList } from "@/components/RewardList";
 import { Reward } from "@/lib/api";
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Campaign } from "@/lib/api";
 
 type SortKey = "id" | "reward_amount" | "total_claimed" | "expiration";
@@ -106,7 +107,11 @@ export function CampaignTable({ campaigns, onDeactivate }: Props) {
               const status = getStatus(c);
               return (
                 <tr key={c.id} style={{ borderBottom: "1px solid #1a1d27" }}>
-                  <td style={{ padding: "10px 12px" }}>#{c.id}</td>
+                  <td style={{ padding: "10px 12px" }}>
+                    <Link href={`/campaigns/${c.id}`} style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}>
+                      #{c.id}
+                    </Link>
+                  </td>
                   <td style={{ padding: "10px 12px" }}>{c.reward_amount.toLocaleString()} LYT</td>
                   <td style={{ padding: "10px 12px" }}>{c.total_claimed}</td>
                   <td style={{ padding: "10px 12px", fontSize: "0.8rem" }}>
