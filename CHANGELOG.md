@@ -1,3 +1,10 @@
+# [1.21.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.20.0...v1.21.0) (2026-04-28)
+
+
+### Features
+
+* add search and filtering to GET /campaigns ([788e523](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/788e5239ae17036dcea192bb0c15a4243c8a2ddd))
+
 # [1.20.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.19.0...v1.20.0) (2026-04-28)
 
 
