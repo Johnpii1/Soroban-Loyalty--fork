@@ -1,3 +1,10 @@
+# [1.22.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.21.1...v1.22.0) (2026-04-28)
+
+
+### Features
+
+* add onboarding flow ([#46](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/46)) and tooltip system ([#57](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/57)) ([28bb3aa](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/28bb3aaf5c2fa4f06da7c7502006bc5d93137fdb))
+
 ## [1.21.1](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.21.0...v1.21.1) (2026-04-28)
 
 
