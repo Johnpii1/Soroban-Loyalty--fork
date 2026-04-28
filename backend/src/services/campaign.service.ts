@@ -3,6 +3,7 @@ import { pool } from "../db";
 export interface Campaign {
   id: number;
   merchant: string;
+  name?: string | null;
   reward_amount: number;
   expiration: number;
   active: boolean;
@@ -49,13 +50,48 @@ export async function getCampaignImageByTxHash(txHash: string): Promise<string |
   return rows[0]?.image_url ?? null;
 }
 
-export async function getCampaigns(limit = 20, offset = 0): Promise<{ campaigns: Campaign[]; total: number }> {
+export interface CampaignFilters {
+  search?: string;
+  status?: "active" | "inactive";
+  expires_before?: number;
+  expires_after?: number;
+}
+
+export async function getCampaigns(
+  limit = 20,
+  offset = 0,
+  filters: CampaignFilters = {}
+): Promise<{ campaigns: Campaign[]; total: number }> {
+  const conditions: string[] = ["deleted_at IS NULL"];
+  const params: unknown[] = [];
+
+  if (filters.search) {
+    params.push(`%${filters.search}%`);
+    conditions.push(`name ILIKE $${params.length}`);
+  }
+  if (filters.status !== undefined) {
+    params.push(filters.status === "active");
+    conditions.push(`active = $${params.length}`);
+  }
+  if (filters.expires_before !== undefined) {
+    params.push(filters.expires_before);
+    conditions.push(`expiration <= $${params.length}`);
+  }
+  if (filters.expires_after !== undefined) {
+    params.push(filters.expires_after);
+    conditions.push(`expiration >= $${params.length}`);
+  }
+
+  const where = conditions.join(" AND ");
+
+  const listParams = [...params, limit, offset];
   const { rows } = await pool.query<Campaign>(
-    `SELECT * FROM campaigns WHERE deleted_at IS NULL ORDER BY display_order ASC, created_at DESC LIMIT $1 OFFSET $2`,
-    [limit, offset]
+    `SELECT * FROM campaigns WHERE ${where} ORDER BY display_order ASC, created_at DESC LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+    listParams
   );
   const { rows: countRows } = await pool.query<{ count: string }>(
-    `SELECT COUNT(*) FROM campaigns WHERE deleted_at IS NULL`
+    `SELECT COUNT(*) FROM campaigns WHERE ${where}`,
+    params
   );
   return { campaigns: rows, total: parseInt(countRows[0].count, 10) };
 }

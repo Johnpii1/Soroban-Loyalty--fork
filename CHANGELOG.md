@@ -1,3 +1,39 @@
+# [1.21.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.20.0...v1.21.0) (2026-04-28)
+
+
+### Features
+
+* add search and filtering to GET /campaigns ([788e523](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/788e5239ae17036dcea192bb0c15a4243c8a2ddd))
+
+# [1.20.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.19.0...v1.20.0) (2026-04-28)
+
+
+### Features
+
+* **rewards:** implement storage migration pattern with idempotency guard ([69b429e](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/69b429e3bfc17f770625e806f1ec8556af3779dd)), closes [#119](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/119)
+* **token:** implement multi-sig admin for mint and set_admin ([c09f586](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/c09f586f7178107bfa046b2da183372766005566)), closes [#114](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/114)
+
+# [1.19.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.18.0...v1.19.0) (2026-04-28)
+
+
+### Features
+
+* **rewards:** implement linear vesting schedule per campaign ([047d419](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/047d419d7e3942b6025aab8146c6ec1575790ee4)), closes [#128](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/128)
+
+# [1.18.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.17.0...v1.18.0) (2026-04-28)
+
+
+### Features
+
+* harden Dockerfiles and add Trivy image scanning to CI ([2a51d90](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/2a51d903aeb26e49732b708bdda8cfcf4521f9a3))
+
+# [1.17.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.16.0...v1.17.0) (2026-04-28)
+
+
+### Features
+
+* all issue ([a5a1c49](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/a5a1c494bad55dd717f570a8d5b5f47add9814d2))
+
 # [1.16.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.15.1...v1.16.0) (2026-04-27)
 
 

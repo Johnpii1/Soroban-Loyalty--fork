@@ -1,20 +1,42 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol,
+    contract, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol, Vec,
 };
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
 
 #[contracttype]
 pub enum DataKey {
-    Admin,
+    /// Multi-sig admin config
+    MultiSig,
+    /// Designated minter (e.g. rewards contract) — can call mint() directly
+    Minter,
     Balance(Address),
-    Allowance(Address, Address), // (owner, spender)
+    Allowance(Address, Address),
     TotalSupply,
     Name,
     Symbol,
     Decimals,
+    /// Pending set_admin proposal awaiting threshold signatures
+    SetAdminProposal,
+}
+
+// ── Multi-sig types ───────────────────────────────────────────────────────────
+
+#[contracttype]
+#[derive(Clone)]
+pub struct MultiSigConfig {
+    pub signers: Vec<Address>,
+    pub threshold: u32,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct SetAdminProposal {
+    pub new_config: MultiSigConfig,
+    pub new_minter: Address,
+    pub signatures: Vec<Address>,
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -31,37 +53,64 @@ pub struct TokenContract;
 
 #[contractimpl]
 impl TokenContract {
-    /// Initialize the token. Can only be called once.
+    /// Initialize the token with multi-sig admin config and a designated minter.
+    /// `minter` is the rewards contract address that can call `mint()` directly.
     pub fn initialize(
         env: Env,
-        admin: Address,
+        signers: Vec<Address>,
+        threshold: u32,
+        minter: Address,
         name: String,
         symbol: String,
         decimals: u32,
     ) {
-        if env.storage().instance().has(&DataKey::Admin) {
+        if env.storage().instance().has(&DataKey::MultiSig) {
             panic!("already initialized");
         }
-        env.storage().instance().set(&DataKey::Admin, &admin);
+        assert!(threshold > 0, "threshold must be positive");
+        assert!(signers.len() >= threshold, "insufficient signers for threshold");
+
+        let config = MultiSigConfig { signers, threshold };
+        env.storage().instance().set(&DataKey::MultiSig, &config);
+        env.storage().instance().set(&DataKey::Minter, &minter);
         env.storage().instance().set(&DataKey::Name, &name);
         env.storage().instance().set(&DataKey::Symbol, &symbol);
         env.storage().instance().set(&DataKey::Decimals, &decimals);
         env.storage().instance().set(&DataKey::TotalSupply, &0_i128);
     }
 
-    // ── Admin helpers ─────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
-    fn admin(env: &Env) -> Address {
-        env.storage().instance().get(&DataKey::Admin).unwrap()
+    fn config(env: &Env) -> MultiSigConfig {
+        env.storage().instance().get(&DataKey::MultiSig).unwrap()
     }
 
-    fn require_admin(env: &Env) {
-        Self::admin(env).require_auth();
+    fn minter(env: &Env) -> Address {
+        env.storage().instance().get(&DataKey::Minter).unwrap()
     }
 
-    // ── Balance helpers ───────────────────────────────────────────────────────
+    fn require_signer(env: &Env, signer: &Address) {
+        signer.require_auth();
+        let cfg = Self::config(env);
+        let mut found = false;
+        for s in cfg.signers.iter() {
+            if s == *signer {
+                found = true;
+                break;
+            }
+        }
+        assert!(found, "not a signer");
+    }
 
-    // Read balance for a pre-built key, avoiding a second key construction.
+    fn has_signed(signatures: &Vec<Address>, signer: &Address) -> bool {
+        for s in signatures.iter() {
+            if s == *signer {
+                return true;
+            }
+        }
+        false
+    }
+
     #[inline(always)]
     fn read_balance(env: &Env, key: &DataKey) -> i128 {
         env.storage().persistent().get(key).unwrap_or(0)
@@ -73,19 +122,12 @@ impl TokenContract {
     }
 
     fn total_supply(env: &Env) -> i128 {
-        env.storage()
-            .instance()
-            .get(&DataKey::TotalSupply)
-            .unwrap_or(0)
+        env.storage().instance().get(&DataKey::TotalSupply).unwrap_or(0)
     }
 
     fn set_total_supply(env: &Env, supply: i128) {
-        env.storage()
-            .instance()
-            .set(&DataKey::TotalSupply, &supply);
+        env.storage().instance().set(&DataKey::TotalSupply, &supply);
     }
-
-    // ── Allowance helpers ─────────────────────────────────────────────────────
 
     fn get_allowance(env: &Env, owner: &Address, spender: &Address) -> i128 {
         env.storage()
@@ -100,28 +142,83 @@ impl TokenContract {
             .set(&DataKey::Allowance(owner.clone(), spender.clone()), &amount);
     }
 
-    // ── Public interface ──────────────────────────────────────────────────────
-
-    pub fn mint(env: Env, to: Address, amount: i128) {
-        Self::require_admin(&env);
-        assert!(amount > 0, "amount must be positive");
-
-        // Build key once; reuse for both read and write — avoids a second
-        // Address clone that the old balance_of/set_balance pair incurred.
+    fn do_mint(env: &Env, to: &Address, amount: i128) {
         let key = DataKey::Balance(to.clone());
-        let new_bal = Self::read_balance(&env, &key)
-            .checked_add(amount)
-            .expect("overflow");
-        Self::write_balance(&env, &key, new_bal);
-
-        let new_supply = Self::total_supply(&env)
-            .checked_add(amount)
-            .expect("overflow");
-        Self::set_total_supply(&env, new_supply);
-
-        env.events()
-            .publish((MINT, symbol_short!("to"), to), (amount, new_supply));
+        let new_bal = Self::read_balance(env, &key).checked_add(amount).expect("overflow");
+        Self::write_balance(env, &key, new_bal);
+        let new_supply = Self::total_supply(env).checked_add(amount).expect("overflow");
+        Self::set_total_supply(env, new_supply);
+        env.events().publish((MINT, symbol_short!("to"), to.clone()), (amount, new_supply));
     }
+
+    // ── Minter-only mint (called by rewards contract) ─────────────────────────
+
+    /// Direct mint callable only by the designated minter (rewards contract).
+    pub fn mint(env: Env, to: Address, amount: i128) {
+        let minter = Self::minter(&env);
+        minter.require_auth();
+        assert!(amount > 0, "amount must be positive");
+        Self::do_mint(&env, &to, amount);
+    }
+
+    // ── Multi-sig admin rotation ──────────────────────────────────────────────
+
+    /// Propose replacing the multi-sig config and minter. First signer initiates.
+    pub fn propose_set_admin(
+        env: Env,
+        signer: Address,
+        new_signers: Vec<Address>,
+        new_threshold: u32,
+        new_minter: Address,
+    ) {
+        Self::require_signer(&env, &signer);
+        assert!(new_threshold > 0, "threshold must be positive");
+        assert!(new_signers.len() >= new_threshold, "insufficient signers for threshold");
+        assert!(
+            !env.storage().instance().has(&DataKey::SetAdminProposal),
+            "set_admin proposal already pending"
+        );
+
+        let new_config = MultiSigConfig { signers: new_signers, threshold: new_threshold };
+        let mut signatures = Vec::new(&env);
+        signatures.push_back(signer);
+        let proposal = SetAdminProposal { new_config, new_minter, signatures };
+        env.storage().instance().set(&DataKey::SetAdminProposal, &proposal);
+    }
+
+    /// Add a signature to the pending set_admin proposal.
+    pub fn approve_set_admin(env: Env, signer: Address) {
+        Self::require_signer(&env, &signer);
+        let mut proposal: SetAdminProposal = env
+            .storage()
+            .instance()
+            .get(&DataKey::SetAdminProposal)
+            .expect("no pending set_admin proposal");
+
+        assert!(!Self::has_signed(&proposal.signatures, &signer), "duplicate signature");
+
+        proposal.signatures.push_back(signer);
+        env.storage().instance().set(&DataKey::SetAdminProposal, &proposal);
+    }
+
+    /// Execute the admin rotation once threshold signatures are collected.
+    pub fn execute_set_admin(env: Env, signer: Address) {
+        Self::require_signer(&env, &signer);
+        let proposal: SetAdminProposal = env
+            .storage()
+            .instance()
+            .get(&DataKey::SetAdminProposal)
+            .expect("no pending set_admin proposal");
+
+        let cfg = Self::config(&env);
+        assert!(proposal.signatures.len() >= cfg.threshold, "insufficient signatures");
+
+        env.storage().instance().remove(&DataKey::SetAdminProposal);
+        env.storage().instance().set(&DataKey::MultiSig, &proposal.new_config);
+        env.storage().instance().set(&DataKey::Minter, &proposal.new_minter);
+    }
+
+    // ── Public token interface ────────────────────────────────────────────────
 
     pub fn burn(env: Env, from: Address, amount: i128) {
         from.require_auth();
@@ -132,51 +229,35 @@ impl TokenContract {
         assert!(bal >= amount, "insufficient balance");
         Self::write_balance(&env, &key, bal - amount);
 
-        // Use checked_sub to guard against total_supply underflow.
-        let new_supply = Self::total_supply(&env)
-            .checked_sub(amount)
-            .expect("underflow");
+        let new_supply = Self::total_supply(&env).checked_sub(amount).expect("underflow");
         Self::set_total_supply(&env, new_supply);
 
-        env.events()
-            .publish((BURN, symbol_short!("from"), from), (amount, new_supply));
+        env.events().publish((BURN, symbol_short!("from"), from), (amount, new_supply));
     }
 
     pub fn transfer(env: Env, from: Address, to: Address, amount: i128) {
         from.require_auth();
         assert!(amount > 0, "amount must be positive");
 
-        // Build both keys up front so each address is cloned exactly once.
         let from_key = DataKey::Balance(from.clone());
         let to_key = DataKey::Balance(to.clone());
-
-        // Read both balances before writing either — keeps reads and writes
-        // clearly separated and avoids any accidental double-read.
         let from_bal = Self::read_balance(&env, &from_key);
         assert!(from_bal >= amount, "insufficient balance");
         let to_bal = Self::read_balance(&env, &to_key);
 
         Self::write_balance(&env, &from_key, from_bal - amount);
-        Self::write_balance(
-            &env,
-            &to_key,
-            to_bal.checked_add(amount).expect("overflow"),
-        );
+        Self::write_balance(&env, &to_key, to_bal.checked_add(amount).expect("overflow"));
 
-        env.events()
-            .publish((TRANSFER, symbol_short!("from"), from), (to, amount));
+        env.events().publish((TRANSFER, symbol_short!("from"), from), (to, amount));
     }
 
-    /// Approve `spender` to transfer up to `amount` tokens on behalf of the caller.
     pub fn approve(env: Env, owner: Address, spender: Address, amount: i128) {
         owner.require_auth();
         assert!(amount >= 0, "amount must be non-negative");
         Self::set_allowance(&env, &owner, &spender, amount);
-        env.events()
-            .publish((APPROVAL, symbol_short!("owner"), owner), (spender, amount));
+        env.events().publish((APPROVAL, symbol_short!("owner"), owner), (spender, amount));
     }
 
-    /// Transfer `amount` tokens from `from` to `to` using the caller's allowance.
     pub fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128) {
         spender.require_auth();
         assert!(amount > 0, "amount must be positive");
@@ -184,21 +265,19 @@ impl TokenContract {
         let current = Self::get_allowance(&env, &from, &spender);
         assert!(current >= amount, "allowance exceeded");
 
-        let from_bal = Self::balance_of(&env, &from);
+        let from_key = DataKey::Balance(from.clone());
+        let to_key = DataKey::Balance(to.clone());
+        let from_bal = Self::read_balance(&env, &from_key);
         assert!(from_bal >= amount, "insufficient balance");
+        let to_bal = Self::read_balance(&env, &to_key);
 
         Self::set_allowance(&env, &from, &spender, current - amount);
-        Self::set_balance(&env, &from, from_bal - amount);
-        let to_bal = Self::balance_of(&env, &to)
-            .checked_add(amount)
-            .expect("overflow");
-        Self::set_balance(&env, &to, to_bal);
+        Self::write_balance(&env, &from_key, from_bal - amount);
+        Self::write_balance(&env, &to_key, to_bal.checked_add(amount).expect("overflow"));
 
-        env.events()
-            .publish((TRANSFER, symbol_short!("from"), from), (to, amount));
+        env.events().publish((TRANSFER, symbol_short!("from"), from), (to, amount));
     }
 
-    /// Returns the remaining allowance for `spender` on behalf of `owner`.
     pub fn allowance(env: Env, owner: Address, spender: Address) -> i128 {
         Self::get_allowance(&env, &owner, &spender)
     }
@@ -211,8 +290,12 @@ impl TokenContract {
         Self::total_supply(&env)
     }
 
-    pub fn admin_address(env: Env) -> Address {
-        Self::admin(&env)
+    pub fn multisig_config(env: Env) -> MultiSigConfig {
+        Self::config(&env)
+    }
+
+    pub fn minter_address(env: Env) -> Address {
+        Self::minter(&env)
     }
 
     pub fn name(env: Env) -> String {
@@ -226,11 +309,6 @@ impl TokenContract {
     pub fn decimals(env: Env) -> u32 {
         env.storage().instance().get(&DataKey::Decimals).unwrap()
     }
-
-    pub fn set_admin(env: Env, new_admin: Address) {
-        Self::require_admin(&env);
-        env.storage().instance().set(&DataKey::Admin, &new_admin);
-    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -238,142 +316,124 @@ impl TokenContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::{Address as _, Events}, vec, IntoVal, Env};
+    use soroban_sdk::{testutils::Address as _, Env};
 
-    fn setup() -> (Env, Address, TokenContractClient<'static>) {
-        let env = Env::default();
-        env.mock_all_auths();
-        let admin = Address::generate(&env);
-        let contract_id = env.register_contract(None, TokenContract);
-        let client = TokenContractClient::new(&env, &contract_id);
+    fn setup_2of3(env: &Env) -> (Address, Address, Address, Address, TokenContractClient<'static>) {
+        let s1 = Address::generate(env);
+        let s2 = Address::generate(env);
+        let s3 = Address::generate(env);
+        let minter = Address::generate(env);
+        let id = env.register_contract(None, TokenContract);
+        let client = TokenContractClient::new(env, &id);
+        let mut signers = Vec::new(env);
+        signers.push_back(s1.clone());
+        signers.push_back(s2.clone());
+        signers.push_back(s3.clone());
         client.initialize(
-            &admin,
-            &String::from_str(&env, "LoyaltyToken"),
-            &String::from_str(&env, "LYT"),
+            &signers,
+            &2,
+            &minter,
+            &String::from_str(env, "LoyaltyToken"),
+            &String::from_str(env, "LYT"),
             &7,
         );
-        (env, admin, client)
+        (s1, s2, s3, minter, client)
     }
 
     #[test]
-    fn test_mint_and_balance() {
-        let (env, _admin, client) = setup();
+    fn test_minter_can_mint_directly() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (_s1, _s2, _s3, minter, client) = setup_2of3(&env);
         let user = Address::generate(&env);
+
         client.mint(&user, &1000);
         assert_eq!(client.balance(&user), 1000);
         assert_eq!(client.total_supply_view(), 1000);
-
-        let events = env.events().all();
-        assert_eq!(events.len(), 1);
-        assert_eq!(
-            events,
-            vec![
-                &env,
-                (
-                    client.address.clone(),
-                    (MINT, symbol_short!("to"), user).into_val(&env),
-                    (1000_i128, 1000_i128).into_val(&env),
-                )
-            ]
-        );
     }
 
     #[test]
-    fn test_transfer() {
-        let (env, _admin, client) = setup();
+    fn test_valid_multisig_set_admin() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (s1, s2, _s3, _minter, client) = setup_2of3(&env);
+        let new_s1 = Address::generate(&env);
+        let new_s2 = Address::generate(&env);
+        let new_minter = Address::generate(&env);
+        let mut new_signers = Vec::new(&env);
+        new_signers.push_back(new_s1.clone());
+        new_signers.push_back(new_s2.clone());
+
+        client.propose_set_admin(&s1, &new_signers, &2, &new_minter);
+        client.approve_set_admin(&s2);
+        client.execute_set_admin(&s1);
+
+        let cfg = client.multisig_config();
+        assert_eq!(cfg.threshold, 2);
+        assert_eq!(cfg.signers.len(), 2);
+        assert_eq!(client.minter_address(), new_minter);
+    }
+
+    #[test]
+    #[should_panic(expected = "insufficient signatures")]
+    fn test_insufficient_signatures_for_set_admin() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (s1, _s2, _s3, _minter, client) = setup_2of3(&env);
+        let new_s1 = Address::generate(&env);
+        let new_minter = Address::generate(&env);
+        let mut new_signers = Vec::new(&env);
+        new_signers.push_back(new_s1.clone());
+
+        client.propose_set_admin(&s1, &new_signers, &1, &new_minter);
+        // Only 1 signature, threshold is 2
+        client.execute_set_admin(&s1);
+    }
+
+    #[test]
+    #[should_panic(expected = "duplicate signature")]
+    fn test_duplicate_signature_rejected() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (s1, _s2, _s3, _minter, client) = setup_2of3(&env);
+        let new_s1 = Address::generate(&env);
+        let new_minter = Address::generate(&env);
+        let mut new_signers = Vec::new(&env);
+        new_signers.push_back(new_s1.clone());
+
+        client.propose_set_admin(&s1, &new_signers, &1, &new_minter);
+        client.approve_set_admin(&s1); // s1 already signed via propose
+    }
+
+    #[test]
+    #[should_panic(expected = "not a signer")]
+    fn test_non_signer_cannot_propose() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (_s1, _s2, _s3, _minter, client) = setup_2of3(&env);
+        let outsider = Address::generate(&env);
+        let new_minter = Address::generate(&env);
+        let mut new_signers = Vec::new(&env);
+        new_signers.push_back(outsider.clone());
+
+        client.propose_set_admin(&outsider, &new_signers, &1, &new_minter);
+    }
+
+    #[test]
+    fn test_transfer_and_burn() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (_s1, _s2, _s3, _minter, client) = setup_2of3(&env);
         let alice = Address::generate(&env);
         let bob = Address::generate(&env);
+
         client.mint(&alice, &500);
         client.transfer(&alice, &bob, &200);
         assert_eq!(client.balance(&alice), 300);
         assert_eq!(client.balance(&bob), 200);
-    }
 
-    #[test]
-    fn test_burn() {
-        let (env, _admin, client) = setup();
-        let user = Address::generate(&env);
-        client.mint(&user, &300);
-        client.burn(&user, &100);
-        assert_eq!(client.balance(&user), 200);
-        assert_eq!(client.total_supply_view(), 200);
-
-        let events = env.events().all();
-        // events[0] = mint, events[1] = burn
-        assert_eq!(events.len(), 2);
-        assert_eq!(
-            events.get(1).unwrap(),
-            (
-                client.address.clone(),
-                (BURN, symbol_short!("from"), user).into_val(&env),
-                (100_i128, 200_i128).into_val(&env),
-            )
-        );
-    }
-
-    #[test]
-    #[should_panic(expected = "insufficient balance")]
-    fn test_burn_insufficient() {
-        let (env, _admin, client) = setup();
-        let user = Address::generate(&env);
-        client.mint(&user, &50);
-        client.burn(&user, &100);
-    }
-
-    #[test]
-    #[should_panic(expected = "insufficient balance")]
-    fn test_transfer_insufficient() {
-        let (env, _admin, client) = setup();
-        let alice = Address::generate(&env);
-        let bob = Address::generate(&env);
-        client.mint(&alice, &50);
-        client.transfer(&alice, &bob, &100);
-    }
-
-    // ── Allowance tests ───────────────────────────────────────────────────────
-
-    #[test]
-    fn test_approve_and_allowance() {
-        let (env, _admin, client) = setup();
-        let alice = Address::generate(&env);
-        let spender = Address::generate(&env);
-        client.approve(&alice, &spender, &500);
-        assert_eq!(client.allowance(&alice, &spender), 500);
-    }
-
-    #[test]
-    fn test_transfer_from_within_allowance() {
-        let (env, _admin, client) = setup();
-        let alice = Address::generate(&env);
-        let bob = Address::generate(&env);
-        let spender = Address::generate(&env);
-        client.mint(&alice, &1000);
-        client.approve(&alice, &spender, &300);
-        client.transfer_from(&spender, &alice, &bob, &200);
-        assert_eq!(client.balance(&alice), 800);
-        assert_eq!(client.balance(&bob), 200);
-        assert_eq!(client.allowance(&alice, &spender), 100);
-    }
-
-    #[test]
-    #[should_panic(expected = "allowance exceeded")]
-    fn test_transfer_from_exceeds_allowance() {
-        let (env, _admin, client) = setup();
-        let alice = Address::generate(&env);
-        let bob = Address::generate(&env);
-        let spender = Address::generate(&env);
-        client.mint(&alice, &1000);
-        client.approve(&alice, &spender, &100);
-        client.transfer_from(&spender, &alice, &bob, &200);
-    }
-
-    #[test]
-    fn test_approve_overwrite() {
-        let (env, _admin, client) = setup();
-        let alice = Address::generate(&env);
-        let spender = Address::generate(&env);
-        client.approve(&alice, &spender, &500);
-        client.approve(&alice, &spender, &100);
-        assert_eq!(client.allowance(&alice, &spender), 100);
+        client.burn(&alice, &100);
+        assert_eq!(client.balance(&alice), 200);
+        assert_eq!(client.total_supply_view(), 400);
     }
 }

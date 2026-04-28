@@ -24,7 +24,6 @@ This document summarizes the implementation of four GitHub issues for the Soroba
 - Verified no horizontal overflow at any viewport width
 - Confirmed proper column layout at each breakpoint
 
----
 
 ### 2. Issue #59: Network Status Monitoring
 **Branch:** `feature/network-status-indicator-59`
@@ -297,10 +296,15 @@ Each commit message includes:
 - [x] 48-hour timelock enforcement
 - [x] N-of-M multi-sig authorization
 - [x] Emergency cancellation
-- [x] Event tracking for indexers
-- [x] Upgrade proposal expiration (via override or manual cancellation)
 
----
+### Staging Environment Parity (Issue #78)
+- [x] Staging environment deployed on merge to main
+- [x] Staging uses same Docker images as production
+- [x] Anonymized production data snapshot refreshed weekly
+- [x] Staging URL accessible to team members only (via Terraform IP filtering)
+- [x] Staging deployment status posted to Slack
+- [x] Staging environment auto-destroyed after 7 days of inactivity
+
 
 ## Support
 
