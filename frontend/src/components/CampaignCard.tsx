@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { Campaign } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { useCountdown } from "@/hooks/useCountdown";
+import { Tooltip } from "@/components/Tooltip";
 
 interface Props {
   campaign: Campaign;
@@ -55,7 +56,9 @@ export function CampaignCard({ campaign, onClaim, claiming }: Props) {
         </p>
         <p>
           <strong>{t("campaigns.details.reward")}:</strong>{" "}
-          {campaign.reward_amount.toLocaleString()} LYT
+          <Tooltip content="LYT tokens you earn by claiming this campaign">
+            <span>{campaign.reward_amount.toLocaleString()} LYT</span>
+          </Tooltip>
         </p>
         <p>
           <strong>{t("campaigns.details.claimed")}:</strong>{" "}
@@ -63,13 +66,15 @@ export function CampaignCard({ campaign, onClaim, claiming }: Props) {
         </p>
         <p>
           <strong>{t("campaigns.details.expires")}:</strong>{" "}
-          <span
-            aria-live="off"
-            aria-label={countdownLabel}
-            data-testid="countdown"
-          >
-            {countdownLabel}
-          </span>
+          <Tooltip content="Time remaining before this campaign expires and can no longer be claimed">
+            <span
+              aria-live="off"
+              aria-label={countdownLabel}
+              data-testid="countdown"
+            >
+              {countdownLabel}
+            </span>
+          </Tooltip>
           {/* Announce minute changes to screen readers */}
           {announceMinute && (
             <span className="sr-only" aria-live="polite" aria-atomic="true">
@@ -80,15 +85,17 @@ export function CampaignCard({ campaign, onClaim, claiming }: Props) {
       </div>
       {onClaim && (
         <div className="card-footer">
-          <button
-            onClick={() => onClaim(campaign.id)}
-            disabled={!canClaim || claiming}
-            className="btn btn-primary"
-          >
-            {claiming
-              ? t("campaigns.actions.claiming")
-              : t("campaigns.actions.claim")}
-          </button>
+          <Tooltip content="Claim this campaign to earn LYT tokens to your wallet">
+            <button
+              onClick={() => onClaim(campaign.id)}
+              disabled={!canClaim || claiming}
+              className="btn btn-primary"
+            >
+              {claiming
+                ? t("campaigns.actions.claiming")
+                : t("campaigns.actions.claim")}
+            </button>
+          </Tooltip>
         </div>
       )}
     </div>
