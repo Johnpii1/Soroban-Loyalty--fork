@@ -1,3 +1,10 @@
+# [1.19.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.18.0...v1.19.0) (2026-04-28)
+
+
+### Features
+
+* **rewards:** implement linear vesting schedule per campaign ([047d419](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/047d419d7e3942b6025aab8146c6ec1575790ee4)), closes [#128](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/128)
+
 # [1.18.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.17.0...v1.18.0) (2026-04-28)
 
 
