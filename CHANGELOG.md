@@ -1,3 +1,11 @@
+# [1.20.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.19.0...v1.20.0) (2026-04-28)
+
+
+### Features
+
+* **rewards:** implement storage migration pattern with idempotency guard ([69b429e](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/69b429e3bfc17f770625e806f1ec8556af3779dd)), closes [#119](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/119)
+* **token:** implement multi-sig admin for mint and set_admin ([c09f586](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/c09f586f7178107bfa046b2da183372766005566)), closes [#114](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/114)
+
 # [1.19.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.18.0...v1.19.0) (2026-04-28)
 
 
