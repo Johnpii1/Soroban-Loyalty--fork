@@ -67,5 +67,12 @@
   },
   "dashboard": {
     "title": "Panel"
+  },
+  "sharing": {
+    "title": "Compartir Campaña",
+    "copyUrl": "Copiar URL",
+    "downloadQR": "Descargar QR",
+    "copied": "¡URL copiada al portapapeles!",
+    "downloaded": "¡Código QR descargado!"
   }
 }

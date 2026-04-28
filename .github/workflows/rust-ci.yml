@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
@@ -33,7 +33,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache Cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -48,8 +48,60 @@ jobs:
       - name: Clippy (warnings as errors)
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+      - name: Run integration tests (Issue #127)
+        run: cargo test -p soroban-loyalty-rewards test_integration --lib
       - name: Run tests
         run: cargo test --workspace
 
       - name: Build contracts (wasm32)
         run: cargo build --target wasm32-unknown-unknown --release --workspace
+
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Run cargo audit
+        id: cargo_audit
+        # --deny unsound --deny yanked treats those as errors; critical vulns always error
+        run: cargo audit --deny warnings 2>&1 | tee audit-results.txt
+        continue-on-error: true
+
+      - name: Post audit results as PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('audit-results.txt', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## 🔒 Cargo Audit Results\n\`\`\`\n${body}\n\`\`\``,
+            });
+
+      - name: Open issue for high vulnerabilities
+        if: failure()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('audit-results.txt', 'utf8');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '⚠️ High/Critical Cargo vulnerability detected',
+              labels: ['security', 'dependencies'],
+              body: `Cargo audit found vulnerabilities in the latest CI run.\n\n\`\`\`\n${body}\n\`\`\``,
+            });
+
+      - name: Fail on critical vulnerabilities
+        if: steps.cargo_audit.outcome == 'failure'
+        run: exit 1

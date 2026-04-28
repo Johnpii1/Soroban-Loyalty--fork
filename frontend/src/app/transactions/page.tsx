@@ -5,8 +5,9 @@ import { useWallet } from "@/context/WalletContext";
 import { api, Reward } from "@/lib/api";
 import { ExportService, Transaction, DateRange } from "@/lib/export";
 import { EmptyState } from "@/components/EmptyState";
+import { SorobanErrorBoundary } from "@/components/SorobanErrorBoundary";
 
-export default function TransactionsPage() {
+function TransactionsPageContent() {
   const { publicKey } = useWallet();
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -15,21 +16,34 @@ export default function TransactionsPage() {
   const [endDate, setEndDate] = useState<string>("");
   const [exporting, setExporting] = useState(false);
   const [isPrintView, setIsPrintView] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!publicKey) return;
-    api.getUserRewards(publicKey).then((r) => {
-      setRewards(r.rewards);
-      // Convert rewards to transactions
-      const txs: Transaction[] = r.rewards.map(reward => ({
-        date: reward.claimed_at,
-        campaignName: `Campaign #${reward.campaign_id}`,
-        action: reward.redeemed ? 'redeem' : 'claim',
-        amount: reward.redeemed ? reward.redeemed_amount : reward.amount,
-        transactionHash: reward.id // Using reward ID as placeholder for tx hash
-      }));
-      setTransactions(txs);
-    }).catch(console.error);
+    if (!publicKey) {
+      setLoading(false);
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    api.getUserRewards(publicKey)
+      .then((r) => {
+        setRewards(r.rewards);
+        const txs: Transaction[] = r.rewards.map(reward => ({
+          date: reward.claimed_at,
+          campaignName: `Campaign #${reward.campaign_id}`,
+          action: reward.redeemed ? 'redeem' : 'claim',
+          amount: reward.redeemed ? reward.redeemed_amount : reward.amount,
+          transactionHash: reward.id
+        }));
+        setTransactions(txs);
+      })
+      .catch((err) => {
+        console.error('Failed to load transactions:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load transaction history');
+      })
+      .finally(() => setLoading(false));
   }, [publicKey]);
 
   const handleExport = async () => {
@@ -39,7 +53,7 @@ export default function TransactionsPage() {
         startDate: new Date(startDate),
         endDate: new Date(endDate)
       } : undefined;
-      
+
       await ExportService.exportToCSV(transactions, range);
     } catch (error) {
       console.error('Export failed:', error);
@@ -73,7 +87,7 @@ export default function TransactionsPage() {
     setDateRange(undefined);
   };
 
-  const filteredTransactions = dateRange 
+  const filteredTransactions = dateRange
     ? ExportService.filterByDateRange(transactions, dateRange)
     : transactions;
 
@@ -86,9 +100,24 @@ export default function TransactionsPage() {
     );
   }
 
+  if (loading) {
+    return (
+      <div>
+        <h1 className="page-title">Transaction History</h1>
+        <div style={{ textAlign: 'center', padding: '3rem' }}>Loading transactions...</div>
+      </div>
+    );
+  }
+
   return (
     <div className={isPrintView ? 'print-view' : ''}>
       <h1 className="page-title">Transaction History</h1>
+
+      {error && (
+        <div className="alert alert-error no-print" style={{ marginBottom: '1rem' }}>
+          {error}
+        </div>
+      )}
 
       <div className="no-print" style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
@@ -119,14 +148,14 @@ export default function TransactionsPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button 
-            onClick={handleExport} 
+          <button
+            onClick={handleExport}
             disabled={exporting || filteredTransactions.length === 0}
             className="btn btn-primary"
           >
             {exporting ? 'Exporting...' : 'Export to CSV'}
           </button>
-          <button 
+          <button
             onClick={handlePrint}
             disabled={filteredTransactions.length === 0}
             className="btn btn-secondary"
@@ -174,7 +203,7 @@ export default function TransactionsPage() {
                   <td>{tx.amount.toLocaleString()} LYT</td>
                   <td className="no-print mono" style={{ fontSize: '0.85rem' }}>
                     {tx.transactionHash.slice(0, 12)}...
-                  </td>
+                   </td>
                 </tr>
               ))}
             </tbody>
@@ -188,5 +217,13 @@ export default function TransactionsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function TransactionsPage() {
+  return (
+    <SorobanErrorBoundary>
+      <TransactionsPageContent />
+    </SorobanErrorBoundary>
   );
 }

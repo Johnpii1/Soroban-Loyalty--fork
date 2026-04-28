@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useWallet } from "@/context/WalletContext";
+import { Tooltip } from "@/components/Tooltip";
 
 function FreighterModal({ onClose }: { onClose: () => void }) {
   return (
@@ -39,7 +40,7 @@ function FreighterModal({ onClose }: { onClose: () => void }) {
 }
 
 export function WalletConnector() {
-  const { publicKey, connecting, connect, disconnect } = useWallet();
+  const { publicKey, connecting, lytBalance, balanceLoading, connect, disconnect } = useWallet();
   const [showModal, setShowModal] = useState(false);
 
   const handleConnect = async () => {
@@ -59,6 +60,22 @@ export function WalletConnector() {
   if (publicKey) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 13,
+            color: "var(--text-secondary)",
+          }}
+        >
+          {balanceLoading ? <span className="inline-spinner" aria-hidden="true" /> : null}
+          <Tooltip content="Your LYT token balance — earned by claiming campaigns">
+            <span aria-live="polite" aria-busy={balanceLoading}>
+              {lytBalance.toLocaleString()} LYT
+            </span>
+          </Tooltip>
+        </span>
         <span style={{ fontFamily: "monospace", fontSize: 13 }}>
           {publicKey.slice(0, 6)}…{publicKey.slice(-4)}
         </span>

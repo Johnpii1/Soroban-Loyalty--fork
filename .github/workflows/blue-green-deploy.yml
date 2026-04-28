@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Determine target slot
         id: slot
@@ -33,7 +33,7 @@ jobs:
           chmod 600 "$HOME/.kube/config"
 
       - name: Build & push backend image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./backend
           push: true
@@ -42,7 +42,7 @@ jobs:
           DOCKER_BUILDKIT: "1"
 
       - name: Build & push frontend image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./frontend
           push: true
@@ -78,3 +78,18 @@ jobs:
           IDLE_SLOT=$([[ "$SLOT" == "blue" ]] && echo "green" || echo "blue")
           kubectl scale deployment/backend-$IDLE_SLOT frontend-$IDLE_SLOT \
             -n soroban-loyalty --replicas=0
+
+      - name: Invalidate CloudFront Cache
+        if: success()
+        run: |
+          if [ -n "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" ]; then
+            aws cloudfront create-invalidation \
+              --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+              --paths "/*"
+          else
+            echo "CLOUDFRONT_DISTRIBUTION_ID not set, skipping invalidation."
+          fi
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}

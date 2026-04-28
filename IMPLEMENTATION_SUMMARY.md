@@ -92,39 +92,40 @@ This document summarizes the implementation of four GitHub issues for the Soroba
 
 ---
 
-### 4. Issue #60: CSV Export and Print View
-**Branch:** `feature/csv-export-print-view-60`
+### 5. Issue #112: Contract Upgrade Mechanism with Timelock
+**Branch:** `feat/contract-upgrade-timelock`
 **Status:** ✅ Complete
 
 #### Changes Made:
-- Created transaction history page with date range filtering
-- Implemented CSV export with proper escaping and formatting
-- Added print-friendly view that hides navigation and buttons
-- Handle large datasets (>1000 rows) with chunked processing
-- Generate filenames with date range format
-- Responsive transaction table with mobile support
-- Date range filters apply to both CSV export and print view
-
-#### Files Created:
-- `frontend/src/lib/export.ts` - Export service with CSV generation
-- `frontend/src/app/transactions/page.tsx` - Transaction history page
+- Implemented `UpgradeProposal` structure for governing contract upgrades
+- Added a mandatory 48-hour timelock (172,800 seconds) for all proposed upgrades
+- Implemented N-of-M multi-sig authorization requirement for upgrades
+- Added emergency cancellation function for admins
+- Integrated comprehensive event emission for tracking the upgrade lifecycle
+- Updated contract initialization to support multiple admins and a threshold
 
 #### Files Modified:
-- `frontend/src/app/layout.tsx` - Added Transactions link to navigation
-- `frontend/src/app/globals.css` - Transaction table and print styles
+- `contracts/campaign/src/lib.rs` - Main logic and tests
+- `contracts/rewards/src/lib.rs` - Updated tests to match new signature
 
 #### Testing:
-- Verified CSV export with various dataset sizes
-- Tested date range filtering
-- Confirmed print view hides navigation elements
-- Validated CSV format with special characters
-- Tested large dataset handling (>1000 rows)
+- ✅ Verified upgrade flow from proposal to execution
+- ✅ Confirmed 48-hour timelock enforcement
+- ✅ Validated N-of-M multi-sig authorization threshold
+- ✅ Tested emergency cancellation functionality
+- ✅ Verified all events are published correctly
 
 ---
 
 ## Installation Instructions
 
 To use these features, you need to install dependencies and merge the branches:
+
+### Smart Contract Setup
+```bash
+cd contracts/campaign
+cargo test
+```
 
 ### Backend Setup
 ```bash
@@ -155,6 +156,12 @@ git merge feature/internationalization-40
 
 # Merge CSV export and print view
 git merge feature/csv-export-print-view-60
+
+# Merge contract upgrade mechanism
+git merge feat/contract-upgrade-timelock
+
+# Merge staging environment configuration
+git merge feature/staging-environment-78
 ```
 
 Or merge all at once:
@@ -163,7 +170,8 @@ git checkout main
 git merge fix/responsive-campaign-cards-30 \
            feature/network-status-indicator-59 \
            feature/internationalization-40 \
-           feature/csv-export-print-view-60
+           feature/csv-export-print-view-60 \
+           feat/contract-upgrade-timelock
 ```
 
 ---
@@ -191,6 +199,7 @@ All features follow WCAG 2.1 Level AA guidelines:
 - Language switcher has proper ARIA labels
 - Print view maintains semantic HTML structure
 - All interactive elements are keyboard accessible
+- Contract upgrade events provide on-chain transparency
 
 ---
 
@@ -200,6 +209,7 @@ All features follow WCAG 2.1 Level AA guidelines:
 - CSV export: Chunked processing for datasets >1000 rows
 - Responsive layout: CSS-only, no JavaScript overhead
 - i18n: Translations loaded once and cached in context
+- Contract upgrades: Efficient on-chain storage and minimal event payloads
 
 ---
 
@@ -227,6 +237,11 @@ Potential improvements for future iterations:
    - Implement card view vs. list view toggle
    - Add animation transitions between breakpoints
 
+5. **Contract Upgrade:**
+   - Implement a DAO-based voting system for upgrades
+   - Add a separate "Governance" contract for cross-contract upgrades
+   - Implement automatic expiration for stale proposals
+
 ---
 
 ## Commit Messages
@@ -237,6 +252,7 @@ All commits follow conventional commit format:
 - `feature/network-status-indicator-59`: "Add network status monitoring and indicator"
 - `feature/internationalization-40`: "Add internationalization support (English and Spanish)"
 - `feature/csv-export-print-view-60`: "Add CSV export and print view for transaction history"
+- `feat/contract-upgrade-timelock`: "feat: implement contract upgrade mechanism with timelock and multi-sig"
 
 Each commit message includes:
 - Clear description of changes
@@ -276,6 +292,13 @@ Each commit message includes:
 - [x] Date range filter works
 - [x] Large datasets handled (>1000 rows)
 - [x] Filename format correct
+
+### Contract Upgrade (Issue #112)
+- [x] 48-hour timelock enforcement
+- [x] N-of-M multi-sig authorization
+- [x] Emergency cancellation
+- [x] Event tracking for indexers
+- [x] Upgrade proposal expiration (via override or manual cancellation)
 
 ---
 
