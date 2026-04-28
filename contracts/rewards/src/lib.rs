@@ -199,10 +199,17 @@ mod tests {
 
         let admin = Address::generate(&env);
 
+        let rewards_id_placeholder = env.register_contract(None, RewardsContract);
+
         let token_id = env.register_contract(None, TokenContract);
         let token = soroban_loyalty_token::TokenContractClient::new(&env, &token_id);
+        let mut token_signers = soroban_sdk::Vec::new(&env);
+        token_signers.push_back(admin.clone());
+        // Initialize token with rewards contract as the designated minter
         token.initialize(
-            &admin,
+            &token_signers,
+            &1,
+            &rewards_id_placeholder,
             &soroban_sdk::String::from_str(&env, "LoyaltyToken"),
             &soroban_sdk::String::from_str(&env, "LYT"),
             &7,
@@ -215,12 +222,8 @@ mod tests {
         campaign_admins.push_back(admin.clone());
         campaign.initialize(&campaign_admins, &1);
 
-        let rewards_id = env.register_contract(None, RewardsContract);
-        let rewards = RewardsContractClient::new(&env, &rewards_id);
+        let rewards = RewardsContractClient::new(&env, &rewards_id_placeholder);
         rewards.initialize(&admin, &token_id, &campaign_id_addr);
-
-        // Give rewards contract mint authority
-        token.set_admin(&rewards_id);
 
         TestSetup { env, token, campaign, rewards }
     }
