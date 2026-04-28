@@ -1,3 +1,10 @@
+# [1.18.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.17.0...v1.18.0) (2026-04-28)
+
+
+### Features
+
+* harden Dockerfiles and add Trivy image scanning to CI ([2a51d90](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/2a51d903aeb26e49732b708bdda8cfcf4521f9a3))
+
 # [1.17.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.16.0...v1.17.0) (2026-04-28)
 
 
