@@ -1,5 +1,6 @@
 import { Request } from "express";
 import { env } from "./env";
+import { getCorrelationId } from "./correlation";
 
 export type AlertLevel = "critical" | "error" | "warn" | "info";
 
