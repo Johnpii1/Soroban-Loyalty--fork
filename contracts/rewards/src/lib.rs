@@ -1,12 +1,10 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, Address, Env, Symbol,
+    contract, contractimpl, contracttype, symbol_short, Address, Env, Symbol, Vec,
 };
 
 // ── Cross-contract interfaces ─────────────────────────────────────────────────
-// We define minimal client traits via contractimport for production.
-// Tests use the real crate clients directly.
 
 mod token {
     use soroban_sdk::{contractclient, Address, Env};
@@ -48,16 +46,35 @@ use campaign::Campaign;
 
 #[contracttype]
 pub enum DataKey {
+    /// v2: Claimed(user, campaign_id) → ClaimRecord
     Claimed(Address, u64),
+    /// v1 (legacy): ClaimedV1(user, campaign_id) → bool
+    /// Kept during migration; removed after migrate() completes.
+    ClaimedV1(Address, u64),
     TokenContract,
     CampaignContract,
     Admin,
+    /// Schema version — bumped by each migration
+    SchemaVersion,
+    /// Idempotency guard: set to true once migrate_v1_to_v2 completes
+    MigrationV1Done,
+}
+
+// ── Storage types ─────────────────────────────────────────────────────────────
+
+/// v2 claim record — richer than the v1 bool
+#[contracttype]
+#[derive(Clone)]
+pub struct ClaimRecord {
+    pub amount: i128,
+    pub claimed_at: u64,
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
 
 const REWARD_CLAIMED: Symbol = symbol_short!("RWD_CLM");
 const REWARD_REDEEMED: Symbol = symbol_short!("RWD_RDM");
+const MIGRATED: Symbol = symbol_short!("MIGRATED");
 
 // ── Contract ──────────────────────────────────────────────────────────────────
 
@@ -103,9 +120,13 @@ impl RewardsContract {
     }
 
     fn has_claimed(env: &Env, user: &Address, campaign_id: u64) -> bool {
+        // Check v2 first, then fall back to v1 (pre-migration)
         env.storage()
             .persistent()
             .has(&DataKey::Claimed(user.clone(), campaign_id))
+            || env.storage()
+                .persistent()
+                .has(&DataKey::ClaimedV1(user.clone(), campaign_id))
     }
 
     /// Returns multiplier in basis points (10000 = 1x, 20000 = 2x).
@@ -138,10 +159,14 @@ impl RewardsContract {
 
         let campaign: Campaign = campaign_client.get_campaign(&campaign_id);
 
-        // Write claimed state before external mint (reentrancy guard)
+        // Write claimed state before external mint (reentrancy guard) — v2 record
+        let record = ClaimRecord {
+            amount: 0, // will be updated below; set 0 now to mark as claimed
+            claimed_at: env.ledger().timestamp(),
+        };
         env.storage()
             .persistent()
-            .set(&DataKey::Claimed(user.clone(), campaign_id), &true);
+            .set(&DataKey::Claimed(user.clone(), campaign_id), &record);
 
         let multiplier_bp = Self::calc_multiplier(
             env.ledger().timestamp(),
@@ -152,6 +177,15 @@ impl RewardsContract {
 
         campaign_client.record_claim(&campaign_id);
         Self::token_client(&env).mint(&user, &final_amount);
+
+        // Update record with actual amount
+        let record = ClaimRecord {
+            amount: final_amount,
+            claimed_at: env.ledger().timestamp(),
+        };
+        env.storage()
+            .persistent()
+            .set(&DataKey::Claimed(user.clone(), campaign_id), &record);
 
         env.events().publish(
             (REWARD_CLAIMED, symbol_short!("user"), user.clone()),
@@ -171,6 +205,71 @@ impl RewardsContract {
 
     pub fn has_claimed_view(env: Env, user: Address, campaign_id: u64) -> bool {
         Self::has_claimed(&env, &user, campaign_id)
+    }
+
+    pub fn schema_version(env: Env) -> u32 {
+        env.storage().instance().get(&DataKey::SchemaVersion).unwrap_or(1)
+    }
+
+    // ── Storage Migration ─────────────────────────────────────────────────────
+
+    /// Migrate v1 claim records (bool) to v2 (ClaimRecord) for a batch of entries.
+    ///
+    /// # Idempotency
+    /// Guarded by `MigrationV1Done` flag — panics if called a second time.
+    ///
+    /// # Admin-only
+    /// Requires admin auth.
+    ///
+    /// # Usage
+    /// Call once after deploying the v2 contract upgrade, passing all
+    /// (user, campaign_id) pairs that were claimed under v1.
+    /// Old `ClaimedV1` keys are removed after writing the new `Claimed` records.
+    ///
+    /// # Rollback
+    /// If migration fails mid-batch, the `MigrationV1Done` flag is NOT set
+    /// (it is only set on success), so the function can be retried.
+    /// To roll back to v1 entirely, redeploy the v1 wasm and the v1 keys
+    /// remain intact (they are only removed on successful migration).
+    pub fn migrate_v1_to_v2(
+        env: Env,
+        admin: Address,
+        entries: Vec<(Address, u64)>,
+    ) {
+        admin.require_auth();
+        let stored_admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        assert!(admin == stored_admin, "not admin");
+
+        // Idempotency guard
+        assert!(
+            !env.storage().instance().has(&DataKey::MigrationV1Done),
+            "migration already completed"
+        );
+
+        let now = env.ledger().timestamp();
+
+        for (user, campaign_id) in entries.iter() {
+            let v1_key = DataKey::ClaimedV1(user.clone(), campaign_id);
+            let v2_key = DataKey::Claimed(user.clone(), campaign_id);
+
+            // Only migrate if v1 record exists and v2 doesn't yet
+            if env.storage().persistent().has(&v1_key)
+                && !env.storage().persistent().has(&v2_key)
+            {
+                let record = ClaimRecord {
+                    amount: 0, // amount unknown from v1 bool; set 0 as sentinel
+                    claimed_at: now,
+                };
+                env.storage().persistent().set(&v2_key, &record);
+                env.storage().persistent().remove(&v1_key);
+            }
+        }
+
+        // Mark migration complete and bump schema version
+        env.storage().instance().set(&DataKey::MigrationV1Done, &true);
+        env.storage().instance().set(&DataKey::SchemaVersion, &2_u32);
+
+        env.events().publish(MIGRATED, 2_u32);
     }
 }
 
@@ -471,8 +570,84 @@ mod tests {
         assert_eq!(t.token.total_supply_view(), 0);
         assert!(!t.rewards.has_claimed_view(&user, &campaign_id));
     }
-        assert_eq!(t.token.balance(&user1), 100);
-        assert_eq!(t.token.balance(&user2), 100);
-        assert_eq!(t.token.total_supply_view(), 200);
+
+    // ── Migration Tests (Issue #119) ──────────────────────────────────────────
+
+    #[test]
+    fn test_migration_v1_to_v2_idempotent_guard() {
+        let t = setup();
+        let admin = Address::generate(&t.env);
+        // Re-initialize with known admin for migration test
+        let rewards_id = t.env.register_contract(None, RewardsContract);
+        let rewards = RewardsContractClient::new(&t.env, &rewards_id);
+        rewards.initialize(&admin, &t.token.address, &t.campaign.address);
+
+        let entries: soroban_sdk::Vec<(Address, u64)> = soroban_sdk::Vec::new(&t.env);
+
+        // First call succeeds
+        rewards.migrate_v1_to_v2(&admin, &entries);
+        assert_eq!(rewards.schema_version(), 2);
+
+        // Second call panics
+        let result = std::panic::catch_unwind(|| {
+            rewards.migrate_v1_to_v2(&admin, &entries);
+        });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_migration_converts_v1_records() {
+        let t = setup();
+        let admin = Address::generate(&t.env);
+        let user1 = Address::generate(&t.env);
+        let user2 = Address::generate(&t.env);
+
+        let rewards_id = t.env.register_contract(None, RewardsContract);
+        let rewards = RewardsContractClient::new(&t.env, &rewards_id);
+        rewards.initialize(&admin, &t.token.address, &t.campaign.address);
+
+        // Simulate v1 state: write ClaimedV1 bool records directly
+        t.env.as_contract(&rewards_id, || {
+            t.env.storage().persistent().set(&DataKey::ClaimedV1(user1.clone(), 1), &true);
+            t.env.storage().persistent().set(&DataKey::ClaimedV1(user2.clone(), 1), &true);
+        });
+
+        // Both users appear claimed via v1 fallback
+        assert!(rewards.has_claimed_view(&user1, &1));
+        assert!(rewards.has_claimed_view(&user2, &1));
+
+        // Run migration
+        let mut entries: soroban_sdk::Vec<(Address, u64)> = soroban_sdk::Vec::new(&t.env);
+        entries.push_back((user1.clone(), 1));
+        entries.push_back((user2.clone(), 1));
+        rewards.migrate_v1_to_v2(&admin, &entries);
+
+        // v1 keys removed, v2 keys present — still appears claimed
+        assert!(rewards.has_claimed_view(&user1, &1));
+        assert!(rewards.has_claimed_view(&user2, &1));
+
+        // Schema version bumped
+        assert_eq!(rewards.schema_version(), 2);
+
+        // v1 keys are gone
+        t.env.as_contract(&rewards_id, || {
+            assert!(!t.env.storage().persistent().has(&DataKey::ClaimedV1(user1.clone(), 1)));
+            assert!(!t.env.storage().persistent().has(&DataKey::ClaimedV1(user2.clone(), 1)));
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "not admin")]
+    fn test_migration_non_admin_rejected() {
+        let t = setup();
+        let admin = Address::generate(&t.env);
+        let outsider = Address::generate(&t.env);
+
+        let rewards_id = t.env.register_contract(None, RewardsContract);
+        let rewards = RewardsContractClient::new(&t.env, &rewards_id);
+        rewards.initialize(&admin, &t.token.address, &t.campaign.address);
+
+        let entries: soroban_sdk::Vec<(Address, u64)> = soroban_sdk::Vec::new(&t.env);
+        rewards.migrate_v1_to_v2(&outsider, &entries);
     }
 }
