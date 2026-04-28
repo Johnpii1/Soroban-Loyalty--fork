@@ -17,7 +17,7 @@
     "@aws-sdk/client-secrets-manager": "^3.600.0",
     "@stellar/stellar-sdk": "^15.0.1",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "multer": "^1.4.5-lts.1",
     "pg": "^8.11.5",
