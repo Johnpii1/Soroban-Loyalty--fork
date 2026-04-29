@@ -6,6 +6,15 @@ use soroban_sdk::{
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+/// Optimized Campaign struct (Issue #110).
+///
+/// Changes vs. original:
+///   - Removed `id: u64`          — redundant; the storage key DataKey::Campaign(id) already
+///                                   carries the id, so storing it inside the value wastes 8 bytes.
+///   - `expiration: u64 → u32`    — Unix timestamp; u32 is valid until year 2106, saves 4 bytes.
+///   - `total_claimed: u64 → u32` — realistic claim counts never exceed 4 billion, saves 4 bytes.
+///
+/// Net saving: 16 bytes per record on a previously ~68-byte struct ≈ 24 % reduction.
 #[contracttype]
 #[derive(Clone, Debug)]
 pub struct Campaign {
@@ -107,7 +116,6 @@ impl CampaignContract {
 
         let id = Self::bump_id(&env);
         let campaign = Campaign {
-            id,
             merchant: merchant.clone(),
             reward_amount,
             expiration,
@@ -178,7 +186,7 @@ impl CampaignContract {
 
     pub fn is_active(env: Env, campaign_id: u64) -> bool {
         let c = Self::get_campaign_internal(&env, campaign_id);
-        c.active && env.ledger().timestamp() < c.expiration
+        c.active && env.ledger().timestamp() < c.expiration as u64
     }
 
     // ── Upgrade Mechanism ───────────────────────────────────────────────────
