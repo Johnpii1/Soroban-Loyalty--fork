@@ -1,3 +1,10 @@
+## [1.22.1](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.22.0...v1.22.1) (2026-04-29)
+
+
+### Performance Improvements
+
+* optimize campaign storage layout and implement temporary storage [#110](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/110) ([1d2b4c7](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/1d2b4c740c69e097f0afdfa996b78890af69941c))
+
 # [1.22.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.21.1...v1.22.0) (2026-04-28)
 
 
