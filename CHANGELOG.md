@@ -1,3 +1,11 @@
+# [1.23.0](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.22.1...v1.23.0) (2026-04-29)
+
+
+### Features
+
+* centralized log aggregation with ELK stack ([#74](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/74)) ([c0b9e6d](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/c0b9e6d3b857a91cddd82d1351e8d7bf589af40a))
+* JWT authentication for merchant endpoints ([#9](https://github.com/Dev-Odun-oss/Soroban-Loyalty/issues/9)) ([327ffe7](https://github.com/Dev-Odun-oss/Soroban-Loyalty/commit/327ffe771235220afe87007436bb9856b28a9646))
+
 ## [1.22.1](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.22.0...v1.22.1) (2026-04-29)
 
 
